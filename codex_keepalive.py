@@ -5,7 +5,6 @@ import re
 import datetime
 import os
 import sys
-import json
 
 # Define state and log paths dynamically based on user home
 USER_HOME = os.path.expanduser("~")
@@ -32,7 +31,6 @@ def check_log_size():
 def load_config():
     config = {
         "enable_daily_keepalive": "true",
-        "keepalive_interval_hours": "24",
         "keepalive_chat_name": "keepalive",
         "enable_terminal_snapshot": "true",
         "enable_login_warning": "true",
@@ -57,74 +55,6 @@ def load_config():
         except Exception:
             pass
     return config
-
-def load_state():
-    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
-    default_state = {
-        "last_run": "1970-01-01 00:00:00",
-        "next_resets": {}
-    }
-    if not os.path.exists(state_file):
-        return default_state
-    try:
-        with open(state_file, "r") as f:
-            content = f.read().strip()
-        # Fallback compatibility with legacy plain text timestamps
-        if not content.startswith("{"):
-            if len(content) == 10:
-                content += " 00:00:00"
-            default_state["last_run"] = content
-            return default_state
-        return json.loads(content)
-    except Exception:
-        return default_state
-
-def save_state(last_run_str, next_resets):
-    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
-    state = {
-        "last_run": last_run_str,
-        "next_resets": next_resets
-    }
-    try:
-        with open(state_file, "w") as f:
-            json.dump(state, f, indent=2)
-    except Exception:
-        pass
-
-def check_should_run(config):
-    if config.get("enable_daily_keepalive", "true").lower() != "true":
-        return False
-        
-    state = load_state()
-    now = datetime.datetime.now()
-    
-    # 1. Smart Scheduler: Check if any account has passed its next scheduled weekly reset time
-    any_reset_expired = False
-    for label, reset_time_str in state.get("next_resets", {}).items():
-        if not reset_time_str:
-            continue
-        try:
-            reset_dt = datetime.datetime.strptime(reset_time_str, "%Y-%m-%d %H:%M:%S")
-            if now >= reset_dt:
-                any_reset_expired = True
-                log_message(f"[Scheduler] Account '{label}' has passed its scheduled weekly reset time ({reset_time_str}). Forcing a wakeup run.")
-                break
-        except Exception:
-            pass
-            
-    if any_reset_expired:
-        return True
-        
-    # 2. Fallback: Revert to normal interval check
-    try:
-        last_run = datetime.datetime.strptime(state.get("last_run", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S")
-        interval_hours = int(config.get("keepalive_interval_hours", "24"))
-        
-        if now - last_run < datetime.timedelta(hours=interval_hours):
-            return False
-    except Exception:
-        pass
-    return True
 
 def cleanup_files(config):
     if config.get("enable_terminal_snapshot", "true").lower() != "true":
@@ -176,6 +106,7 @@ def discover_accounts(config):
 def parse_metric(metric_name, screen):
     clean_screen = screen.replace("│", " ")
     
+    # 1. Same-line match
     pattern_same_line = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)\s*\(resets\s*([^\)]+)\)',
         re.IGNORECASE
@@ -184,6 +115,7 @@ def parse_metric(metric_name, screen):
     if m:
         return m.group(1).strip(), m.group(2).strip().replace('\n', ' ')
         
+    # 2. Cross-line match
     pattern_cross_line = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)(?:\s*\n\s*)\(resets\s*([^\)]+)\)',
         re.IGNORECASE
@@ -192,6 +124,7 @@ def parse_metric(metric_name, screen):
     if m:
         return m.group(1).strip(), m.group(2).strip().replace('\n', ' ')
         
+    # 3. Limit only match
     pattern_only_limit = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)',
         re.IGNORECASE
@@ -209,6 +142,7 @@ def parse_reset_time_to_datetime(reset_str):
     now = datetime.datetime.now()
     year = now.year
     
+    # Match "HH:MM on D Month" (e.g. 02:11 on 8 Jun)
     m = re.match(r'(\d{1,2}):(\d{2})\s+on\s+(\d+)\s+([A-Za-z]+)', reset_str.strip())
     if m:
         hour = int(m.group(1))
@@ -229,6 +163,7 @@ def parse_reset_time_to_datetime(reset_str):
         except:
             return None
             
+    # Match "HH:MM" (e.g. 17:00)
     m = re.match(r'(\d{1,2}):(\d{2})', reset_str.strip())
     if m:
         hour = int(m.group(1))
@@ -254,6 +189,7 @@ def fetch_account_metrics(home_dir, label, config):
     subprocess.run(f"tmux send-keys -t {session_name} '{run_cmd}' C-m", shell=True)
     time.sleep(5)
     
+    # Trigger first status check
     subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
     time.sleep(5)
     
@@ -301,24 +237,29 @@ def trigger_keepalive_tui(home_dir, label, config):
 
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     
+    # Wait for codex start
     for _ in range(10):
         time.sleep(1)
         res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
         if "model:" in res.stdout or "Tip:" in res.stdout:
             break
             
+    # Enter /resume list
     subprocess.run(f"tmux send-keys -t {session_name} '/resume' C-m", shell=True)
     
+    # Wait for list load
     for _ in range(10):
         time.sleep(1)
         res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
         if "enter resume" in res.stdout or "Sort:" in res.stdout:
             break
             
+    # Search for keepalive
     chat_name = config.get("keepalive_chat_name", "keepalive")
     subprocess.run(f"tmux send-keys -t {session_name} '{chat_name}'", shell=True)
     time.sleep(2)
     
+    # Check if found
     res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
     
     no_chat_indicators = ["No results", "0 / 0", "No saved chat", "No matches"]
@@ -338,12 +279,14 @@ def trigger_keepalive_tui(home_dir, label, config):
         log_message(f"[{label}] Successfully found chat '{chat_name}', entering to edit historical message...")
         subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
         
+        # Wait for loading
         for _ in range(10):
             time.sleep(1)
             res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
             if "enter resume" not in res.stdout and "›" in res.stdout:
                 break
                 
+        # Esc -> Up -> Enter to edit
         subprocess.run(f"tmux send-keys -t {session_name} Escape", shell=True)
         time.sleep(0.5)
         subprocess.run(f"tmux send-keys -t {session_name} Up", shell=True)
@@ -351,6 +294,7 @@ def trigger_keepalive_tui(home_dir, label, config):
         subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
         time.sleep(0.5)
         
+        # Clear and send modified message
         subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
         new_msg = "keepalive at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         subprocess.run(f"tmux send-keys -t {session_name} '{new_msg}' C-m", shell=True)
@@ -363,7 +307,8 @@ def main():
     check_log_size()
     config = load_config()
     
-    if not check_should_run(config):
+    # Check if keepalive is globally enabled
+    if config.get("enable_daily_keepalive", "true").lower() != "true":
         cleanup_files(config)
         sys.exit(0)
         
@@ -371,6 +316,7 @@ def main():
     accounts = discover_accounts(config)
     log_message(f"Dynamically discovered {len(accounts)} Codex account configuration(s).")
     
+    # Ensure tmux server is running
     subprocess.run("tmux start-server 2>/dev/null", shell=True)
     
     warnings = []
@@ -397,6 +343,7 @@ def main():
         reason = ""
         
         if not weekly_info:
+            # Check other limits for activity if Weekly limit is not currently rendered
             other_limit_0_used = False
             for limit_name, limit_info in metrics.items():
                 try:
@@ -433,6 +380,7 @@ def main():
                     reason = f"Weekly limit has used {used_percent}%, countdown likely running but shown as unknown"
             else:
                 delta = reset_dt - now
+                # If reset time is equal to or close to 7 days ahead (>= 7 days - 10 mins), it's not activated
                 if delta >= datetime.timedelta(days=7) - datetime.timedelta(minutes=10):
                     need_wakeup = True
                     reason = f"Reset time ({reset_str}) is {delta} from now (approx 7 days), keepalive needed to activate cycle"
@@ -447,6 +395,7 @@ def main():
         else:
             log_message(f"[{label}] {reason} -> Skipping wakeup")
             
+    # Write alert log
     warning_file = os.path.join(USER_HOME, ".codex_warning")
     if warnings and config.get("enable_login_warning", "true").lower() == "true":
         try:
@@ -463,6 +412,7 @@ def main():
             except Exception:
                 pass
                 
+    # Update quota cache view
     cache_file = os.path.join(USER_HOME, ".codex_status_cache")
     if config.get("enable_terminal_snapshot", "true").lower() == "true":
         GREEN = "\033[92m"
@@ -537,22 +487,16 @@ def main():
             except Exception:
                 pass
                 
-    # Record next resets and update state
-    next_resets = {}
-    for home_dir, cmd_name, label in accounts:
-        res = results.get(label)
-        if not res or not res["metrics"]:
-            continue
-        weekly_info = res["metrics"].get("Weekly limit")
-        if weekly_info:
-            reset_str = weekly_info["reset"]
-            reset_dt = parse_reset_time_to_datetime(reset_str)
-            if reset_dt:
-                next_resets[label] = reset_dt.strftime("%Y-%m-%d %H:%M:%S")
-
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_state(now_str, next_resets)
-    log_message(f"Updated keepalive execution timestamp to: {now_str}")
+    # Record state execution timestamp
+    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
+    try:
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(state_file, "w") as f:
+            f.write(now_str)
+        log_message(f"Updated keepalive execution timestamp to: {now_str}")
+    except Exception:
+        pass
+        
     log_message("================== Keepalive Logic Execution Finished ==================\n")
 
 if __name__ == "__main__":

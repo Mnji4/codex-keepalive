@@ -8,15 +8,11 @@
 # nvm_dir = "/home/yourname/.nvm"
 
 # ==========================================
-# 2. Keepalive Toggles & Interval
+# 2. Keepalive Toggles
 # ==========================================
 
 # Enable automatic keepalive checking (true/false)
 enable_daily_keepalive = true
-
-# Keepalive check interval in hours (default to 24 hours)
-# Checks will exit instantly if less than this interval has elapsed since the last run
-keepalive_interval_hours = 24
 
 # The chat name in Codex list to search and edit for keeping alive (TUI history edit version)
 # NOTE: The script automatically creates this chat room if it does not exist. No manual setup required.

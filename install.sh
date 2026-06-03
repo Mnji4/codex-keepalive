@@ -41,18 +41,20 @@ fi
 for CONF in "${SHELL_FILES[@]}"; do
     echo "Registering alias and hooks in $CONF..."
     
-    # Inject codex_status alias
+    # 1. Clean up legacy background triggers to prevent terminal launch bloating
+    if [ -f "$CONF" ]; then
+        # Remove any line that triggers the keepalive wrapper script
+        sed -i '/codex_keepalive.sh/d' "$CONF"
+    fi
+
+    # 2. Inject codex_status alias
     if ! grep -q "alias codex_status=" "$CONF"; then
         echo 'alias codex_status="python3 ~/codex-keepalive/codex_status.py"' >> "$CONF"
     fi
     
-    # Inject non-blocking startup hooks
-    if ! grep -q "Codex Auto Keepalive Trigger" "$CONF"; then
+    # 3. Inject non-blocking startup hooks (ONLY display cache, NO background trigger)
+    if ! grep -q "Codex Quota Status Snapshot Display" "$CONF"; then
         cat << 'EOF' >> "$CONF"
-
-# Codex Auto Keepalive Trigger (Silent Asynchronous)
-# This script runs silently in the background and checks config.toml's keepalive_interval_hours to determine whether to trigger keepalive.
-nohup bash "$HOME/codex-keepalive/codex_keepalive.sh" >/dev/null 2>&1 &
 
 # Codex Connection Alert (Logged Out Warning)
 if [ -f "$HOME/.codex_warning" ]; then
@@ -72,9 +74,9 @@ EOF
     fi
 done
 
-# Setup or update crontab entry for hourly background checks
-echo "Configuring crontab entry for hourly checks..."
-CRON_JOB="0 * * * * /bin/bash $INSTALL_DIR/codex_keepalive.sh"
+# Setup or update crontab entry for background checks (triggered every 3 hours)
+echo "Configuring crontab entry for checking every 3 hours..."
+CRON_JOB="0 */3 * * * /bin/bash $INSTALL_DIR/codex_keepalive.sh"
 
 # Read current crontab
 crontab -l 2>/dev/null > tmp_cron || true
@@ -82,13 +84,13 @@ crontab -l 2>/dev/null > tmp_cron || true
 # Remove any existing codex_keepalive.sh references to prevent duplicates and clean old paths
 sed -i '/codex_keepalive.sh/d' tmp_cron
 
-# Append new hourly cron job
+# Append new 3-hour cron job
 echo "$CRON_JOB" >> tmp_cron
 
 # Apply updated crontab
 crontab tmp_cron
 rm tmp_cron
-echo "Crontab successfully updated to run hourly."
+echo "Crontab successfully updated to run every 3 hours."
 
 echo -e "\n\033[92m✔ Installation complete!\033[0m"
 echo "--------------------------------------------------------"
