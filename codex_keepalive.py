@@ -199,7 +199,7 @@ def fetch_account_metrics_thread(home_dir, label, config, index):
     for _ in range(20):  # Wait up to 10 seconds (0.5s * 20)
         time.sleep(0.5)
         res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        if "Collaboration mode:" in res.stdout or "Session:" in res.stdout or "›" in res.stdout:
+        if "Collaboration mode:" in res.stdout or "Session:" in res.stdout or ("›" in res.stdout and "Booting" not in res.stdout):
             ready = True
             break
             
