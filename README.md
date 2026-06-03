@@ -48,19 +48,19 @@ You can configure feature toggles inside `~/codex-keepalive/config.toml`:
 | `enable_login_warning` | Boolean | `true` | Show high-visibility warnings for logged-out accounts. |
 
 #### How to Turn Off or Delete Specific Features
-- If you set `enable_terminal_snapshot = false` or `enable_login_warning = false` in `config.toml`, **the script will automatically clean up the local cached files** (`~/.codex_status_cache` and `~/.codex_warning`), immediately stopping the terminal output.
+- If you set `enable_terminal_snapshot = false` or `enable_login_warning = false` in `config.toml`, **the script will automatically clean up the local cached files** (`~/codex-keepalive/state/status_cache` and `~/codex-keepalive/state/warning`), immediately stopping the terminal output.
 
 #### Complete Uninstall & Cleanup
 To completely remove this tool and all local traces from your system:
-1. Delete the installation directory:
+1. Delete the installation directory (this automatically deletes all local logs and caches stored inside `~/codex-keepalive/state/`):
    ```bash
    rm -rf ~/codex-keepalive
    ```
-2. Delete cached state, log, and alert files:
+2. Open `~/.bashrc` or `~/.zshrc` (depending on your shell) and delete the lines appended at the end of the file (under the `# Codex Connection Alert` header, including the `codex_status` alias).
+3. (Optional) If you have legacy cache files in your home directory from older versions, delete them:
    ```bash
    rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
    ```
-3. Open `~/.bashrc` or `~/.zshrc` (depending on your shell) and delete the lines appended at the end of the file (under the `# Codex Connection Alert` header, including the `codex_status` alias).
 
 ---
 
@@ -108,18 +108,18 @@ alias codex2="HOME=~/.codex_user2 codex"
 | `enable_login_warning` | 布尔值 | `true` | 是否在终端启动时提示掉登录的账号。 |
 
 #### 如何关闭或删除特定功能
-- 如果您在 `config.toml` 中将 `enable_terminal_snapshot` 或 `enable_login_warning` 设为 `false`，**脚本将在下一次运行时自动删除对应的本地缓存文件**（`~/.codex_status_cache` 或 `~/.codex_warning`），从而立刻停止在终端启动时显示相应信息。
+- 如果您在 `config.toml` 中将 `enable_terminal_snapshot` 或 `enable_login_warning` 设为 `false`，**脚本将在下一次运行时自动删除对应的本地缓存文件**（`~/codex-keepalive/state/status_cache` 或 `~/codex-keepalive/state/warning`），从而立刻停止在终端启动时显示相应信息。
 
 #### 彻底卸载与清理垃圾
 如果您想彻底删除此工具及系统上的所有本地痕迹：
-1. 删除安装目录：
+1. 删除安装目录（这会自动清空并删除 `~/codex-keepalive/state/` 下的所有日志、缓存与临时状态文件）：
    ```bash
    rm -rf ~/codex-keepalive
    ```
-2. 删除本地缓存、状态、日志和警报文件：
+2. 打开 `~/.bashrc` 或 `~/.zshrc`（取决于您使用的 shell），删除文件末尾追加的命令别名及 hooks 脚本块（在 `# Codex Connection Alert` 注释之后的所有内容）。
+3. （可选）如果您有旧版残留于家目录的缓存，可运行以下命令手动清理：
    ```bash
    rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
    ```
-3. 打开 `~/.bashrc` 或 `~/.zshrc`（取决于您使用的 shell），删除文件末尾追加的命令别名及 hooks 脚本块（在 `# Codex Connection Alert` 注释之后的所有内容）。
 
 ---
