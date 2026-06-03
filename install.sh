@@ -72,6 +72,24 @@ EOF
     fi
 done
 
+# Setup or update crontab entry for hourly background checks
+echo "Configuring crontab entry for hourly checks..."
+CRON_JOB="0 * * * * /bin/bash $INSTALL_DIR/codex_keepalive.sh"
+
+# Read current crontab
+crontab -l 2>/dev/null > tmp_cron || true
+
+# Remove any existing codex_keepalive.sh references to prevent duplicates and clean old paths
+sed -i '/codex_keepalive.sh/d' tmp_cron
+
+# Append new hourly cron job
+echo "$CRON_JOB" >> tmp_cron
+
+# Apply updated crontab
+crontab tmp_cron
+rm tmp_cron
+echo "Crontab successfully updated to run hourly."
+
 echo -e "\n\033[92m✔ Installation complete!\033[0m"
 echo "--------------------------------------------------------"
 echo "1. Run: source <your_shell_profile> (e.g., source ~/.zshrc or source ~/.bashrc)"

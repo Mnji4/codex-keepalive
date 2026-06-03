@@ -5,6 +5,7 @@ import re
 import datetime
 import os
 import sys
+import json
 
 # Define state and log paths dynamically based on user home
 USER_HOME = os.path.expanduser("~")
@@ -57,21 +58,69 @@ def load_config():
             pass
     return config
 
+def load_state():
+    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
+    default_state = {
+        "last_run": "1970-01-01 00:00:00",
+        "next_resets": {}
+    }
+    if not os.path.exists(state_file):
+        return default_state
+    try:
+        with open(state_file, "r") as f:
+            content = f.read().strip()
+        # Fallback compatibility with legacy plain text timestamps
+        if not content.startswith("{"):
+            if len(content) == 10:
+                content += " 00:00:00"
+            default_state["last_run"] = content
+            return default_state
+        return json.loads(content)
+    except Exception:
+        return default_state
+
+def save_state(last_run_str, next_resets):
+    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
+    state = {
+        "last_run": last_run_str,
+        "next_resets": next_resets
+    }
+    try:
+        with open(state_file, "w") as f:
+            json.dump(state, f, indent=2)
+    except Exception:
+        pass
+
 def check_should_run(config):
     if config.get("enable_daily_keepalive", "true").lower() != "true":
         return False
         
-    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
-    if not os.path.exists(state_file):
+    state = load_state()
+    now = datetime.datetime.now()
+    
+    # 1. Smart Scheduler: Check if any account has passed its next scheduled weekly reset time
+    any_reset_expired = False
+    for label, reset_time_str in state.get("next_resets", {}).items():
+        if not reset_time_str:
+            continue
+        try:
+            reset_dt = datetime.datetime.strptime(reset_time_str, "%Y-%m-%d %H:%M:%S")
+            if now >= reset_dt:
+                any_reset_expired = True
+                log_message(f"[Scheduler] Account '{label}' has passed its scheduled weekly reset time ({reset_time_str}). Forcing a wakeup run.")
+                break
+        except Exception:
+            pass
+            
+    if any_reset_expired:
         return True
         
+    # 2. Fallback: Revert to normal interval check
     try:
-        with open(state_file, "r") as f:
-            last_run_str = f.read().strip()
-        last_run = datetime.datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S")
+        last_run = datetime.datetime.strptime(state.get("last_run", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S")
         interval_hours = int(config.get("keepalive_interval_hours", "24"))
         
-        if datetime.datetime.now() - last_run < datetime.timedelta(hours=interval_hours):
+        if now - last_run < datetime.timedelta(hours=interval_hours):
             return False
     except Exception:
         pass
@@ -488,15 +537,22 @@ def main():
             except Exception:
                 pass
                 
-    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
-    try:
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(state_file, "w") as f:
-            f.write(now_str)
-        log_message(f"Updated keepalive execution timestamp to: {now_str}")
-    except Exception:
-        pass
-        
+    # Record next resets and update state
+    next_resets = {}
+    for home_dir, cmd_name, label in accounts:
+        res = results.get(label)
+        if not res or not res["metrics"]:
+            continue
+        weekly_info = res["metrics"].get("Weekly limit")
+        if weekly_info:
+            reset_str = weekly_info["reset"]
+            reset_dt = parse_reset_time_to_datetime(reset_str)
+            if reset_dt:
+                next_resets[label] = reset_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_state(now_str, next_resets)
+    log_message(f"Updated keepalive execution timestamp to: {now_str}")
     log_message("================== Keepalive Logic Execution Finished ==================\n")
 
 if __name__ == "__main__":
