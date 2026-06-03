@@ -62,7 +62,7 @@ To completely remove this tool and all local traces from your system:
    ```bash
    rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
    ```
-3. Open `~/.bashrc` and delete the lines appended at the end of the file (under the `# Codex Auto Keepalive Trigger` header, including the `codex_status` alias).
+3. Open `~/.bashrc` or `~/.zshrc` (depending on your shell) and delete the lines appended at the end of the file (under the `# Codex Auto Keepalive Trigger` header, including the `codex_status` alias).
 
 ---
 
@@ -102,7 +102,7 @@ alias codex2="HOME=~/.codex_user2 codex"
 
 ### ⚙️ 功能开关与删除清理
 
-您可以通过修改 `~/codex-keepalive/config.toml` 来配置功能开关：
+幕后可通过修改 `~/codex-keepalive/config.toml` 来配置功能开关：
 
 | 配置参数 | 类型 | 默认值 | 作用说明 |
 | :--- | :--- | :--- | :--- |
@@ -120,10 +120,10 @@ alias codex2="HOME=~/.codex_user2 codex"
    ```bash
    rm -rf ~/codex-keepalive
    ```
-2. 删除本地缓存、状态、日志和警报文件：
+2. 删除本地缓存、状态、日志 and 警报文件：
    ```bash
    rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
    ```
-3. 打开 `~/.bashrc`，删除文件末尾追加的命令别名及 hooks 脚本块（在 `# Codex Auto Keepalive Trigger` 注释之后的所有内容）。
+3. 打开 `~/.bashrc` 或 `~/.zshrc`（取决于您使用的 shell），删除文件末尾追加的命令别名及 hooks 脚本块（在 `# Codex Auto Keepalive Trigger` 注释之后的所有内容）。
 
 ---
