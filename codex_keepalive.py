@@ -5,10 +5,14 @@ import re
 import datetime
 import os
 import sys
+import threading
 
 # Define state and log paths dynamically based on user home
 USER_HOME = os.path.expanduser("~")
 LOG_FILE = os.path.join(USER_HOME, ".codex_keepalive.log")
+
+results = {}
+lock = threading.Lock()
 
 def log_message(msg):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -106,7 +110,6 @@ def discover_accounts(config):
 def parse_metric(metric_name, screen):
     clean_screen = screen.replace("│", " ")
     
-    # 1. Same-line match
     pattern_same_line = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)\s*\(resets\s*([^\)]+)\)',
         re.IGNORECASE
@@ -115,7 +118,6 @@ def parse_metric(metric_name, screen):
     if m:
         return m.group(1).strip(), m.group(2).strip().replace('\n', ' ')
         
-    # 2. Cross-line match
     pattern_cross_line = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)(?:\s*\n\s*)\(resets\s*([^\)]+)\)',
         re.IGNORECASE
@@ -124,7 +126,6 @@ def parse_metric(metric_name, screen):
     if m:
         return m.group(1).strip(), m.group(2).strip().replace('\n', ' ')
         
-    # 3. Limit only match
     pattern_only_limit = re.compile(
         re.escape(metric_name) + r':\s*\[[^\]]*\]\s*(\d+%\s*left)',
         re.IGNORECASE
@@ -142,7 +143,6 @@ def parse_reset_time_to_datetime(reset_str):
     now = datetime.datetime.now()
     year = now.year
     
-    # Match "HH:MM on D Month" (e.g. 02:11 on 8 Jun)
     m = re.match(r'(\d{1,2}):(\d{2})\s+on\s+(\d+)\s+([A-Za-z]+)', reset_str.strip())
     if m:
         hour = int(m.group(1))
@@ -163,7 +163,6 @@ def parse_reset_time_to_datetime(reset_str):
         except:
             return None
             
-    # Match "HH:MM" (e.g. 17:00)
     m = re.match(r'(\d{1,2}):(\d{2})', reset_str.strip())
     if m:
         hour = int(m.group(1))
@@ -172,7 +171,10 @@ def parse_reset_time_to_datetime(reset_str):
         
     return None
 
-def fetch_account_metrics(home_dir, label, config):
+def fetch_account_metrics_thread(home_dir, label, config, index):
+    # Stagger thread starts slightly by 0.5s to prevent concurrent tmux server race condition
+    time.sleep(0.5 * index)
+    
     clean_label = re.sub(r'[^a-zA-Z0-9_]', '', label.replace(' ', '_'))
     session_name = f"keepalive_check_{clean_label}"
     
@@ -187,41 +189,51 @@ def fetch_account_metrics(home_dir, label, config):
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
     subprocess.run(f"tmux send-keys -t {session_name} '{run_cmd}' C-m", shell=True)
-    time.sleep(5)
     
-    # Trigger first status check
+    # 1. Dynamically wait for Codex to be ready instead of sleep(5)
+    ready = False
+    for _ in range(20):  # Wait up to 10 seconds (0.5s * 20)
+        time.sleep(0.5)
+        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
+        if "Collaboration mode:" in res.stdout or "Session:" in res.stdout or "›" in res.stdout:
+            ready = True
+            break
+            
+    # 2. Send the first /status to trigger background refresh request
     subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
-    time.sleep(5)
+    
+    # 3. Wait 6 seconds for the client to complete sync with OpenAI in the background
+    time.sleep(6)
+    
+    # 4. Clear prompt line and send second /status for capturing fresh metrics
+    subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
+    time.sleep(0.5)
+    subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
+    time.sleep(1)
+    
+    res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
+    screen = res.stdout
+    
+    # 5. Kill session immediately
+    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
     
     email = "unknown"
     metrics = {}
     
-    for attempt in range(5):
-        subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
-        time.sleep(0.5)
-        subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
-        time.sleep(4)
+    email_match = re.search(r'Account:\s+([^\s(]+)', screen)
+    if email_match:
+        email = email_match.group(1).strip()
         
-        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        screen = res.stdout
-        
-        email_match = re.search(r'Account:\s+([^\s(]+)', screen)
-        if email_match:
-            email = email_match.group(1).strip()
+    for metric_name in ["5h limit", "Weekly limit", "Usage limit"]:
+        limit, reset = parse_metric(metric_name, screen)
+        if limit:
+            metrics[metric_name] = {"limit": limit, "reset": reset}
             
-        temp_metrics = {}
-        for metric_name in ["5h limit", "Weekly limit", "Usage limit"]:
-            limit, reset = parse_metric(metric_name, screen)
-            if limit:
-                temp_metrics[metric_name] = {"limit": limit, "reset": reset}
-                
-        if temp_metrics:
-            metrics = temp_metrics
-            break
-        time.sleep(1)
-        
-    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
-    return email, metrics
+    with lock:
+        results[label] = {
+            "email": email,
+            "metrics": metrics
+        }
 
 def trigger_keepalive_tui(home_dir, label, config):
     log_message(f"[{label}] Spawning keyboard macro to edit the last message in '{config.get('keepalive_chat_name', 'keepalive')}' to trigger activation...")
@@ -319,23 +331,28 @@ def main():
     # Ensure tmux server is running
     subprocess.run("tmux start-server 2>/dev/null", shell=True)
     
+    # Concurrent parallel queries for all accounts
+    threads = []
+    for i, (home_dir, cmd_name, label) in enumerate(accounts):
+        t = threading.Thread(target=fetch_account_metrics_thread, args=(home_dir, label, config, i))
+        threads.append(t)
+        t.start()
+        
+    for t in threads:
+        t.join()
+        
     warnings = []
-    results = {}
     
     for home_dir, cmd_name, label in accounts:
-        log_message(f"[{label}] Checking quota status... (HOME={home_dir})")
-        email, metrics = fetch_account_metrics(home_dir, label, config)
-        
-        results[label] = {
-            "email": email,
-            "metrics": metrics
-        }
-        
-        if not metrics or email == "unknown" or email == "未知":
+        res = results.get(label)
+        if not res or res["email"] == "unknown" or res["email"] == "未知" or not res["metrics"]:
+            email = res["email"] if res else "unknown"
             log_message(f"[{label}] Not logged in or failed to fetch status!")
             warnings.append(f"  - {label} ({email}) Logged out! Run '{cmd_name}' manually to log in again.")
             continue
             
+        email = res["email"]
+        metrics = res["metrics"]
         log_message(f"[{label}] Email: {email}")
         
         weekly_info = metrics.get("Weekly limit")

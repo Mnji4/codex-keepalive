@@ -104,7 +104,10 @@ def parse_metric(metric_name, screen):
         
     return None, None
 
-def fetch_single_account(home_dir, cmd_name, label, config):
+def fetch_single_account_thread(home_dir, cmd_name, label, config, index):
+    # Stagger thread starts slightly by 0.5s to prevent concurrent tmux server race condition
+    time.sleep(0.5 * index)
+    
     clean_label = re.sub(r'[^a-zA-Z0-9_]', '', label.replace(' ', '_'))
     session_name = f"cpa_status_check_{clean_label}"
     
@@ -119,42 +122,46 @@ def fetch_single_account(home_dir, cmd_name, label, config):
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
     subprocess.run(f"tmux send-keys -t {session_name} '{run_cmd}' C-m", shell=True)
-    time.sleep(5)
     
+    # 1. Dynamically wait for Codex to be ready instead of sleep(5)
+    ready = False
+    for _ in range(20):  # Wait up to 10 seconds (0.5s * 20)
+        time.sleep(0.5)
+        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
+        if "Collaboration mode:" in res.stdout or "Session:" in res.stdout or "›" in res.stdout:
+            ready = True
+            break
+            
+    # 2. Send the first /status to trigger background refresh request
     subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
-    time.sleep(5)
+    
+    # 3. Wait 6 seconds for the client to complete sync with OpenAI in the background
+    time.sleep(6)
+    
+    # 4. Clear prompt line and send second /status for capturing fresh metrics
+    subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
+    time.sleep(0.5)
+    subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
+    time.sleep(1)
+    
+    res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
+    screen = res.stdout
+    
+    # 5. Kill session immediately
+    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
     
     email = "unknown"
     metrics = {}
-    screen = ""
     
-    for attempt in range(5):
-        subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
-        time.sleep(0.5)
-        subprocess.run(f"tmux send-keys -t {session_name} '/status' C-m", shell=True)
-        time.sleep(4)
+    email_match = re.search(r'Account:\s+([^\s(]+)', screen)
+    if email_match:
+        email = email_match.group(1).strip()
         
-        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        screen = res.stdout
-        
-        email_match = re.search(r'Account:\s+([^\s(]+)', screen)
-        if email_match:
-            email = email_match.group(1).strip()
+    for metric_name in ["5h limit", "Weekly limit", "Usage limit"]:
+        limit, reset = parse_metric(metric_name, screen)
+        if limit:
+            metrics[metric_name] = {"limit": limit, "reset": reset}
             
-        temp_metrics = {}
-        for metric_name in ["5h limit", "Weekly limit", "Usage limit"]:
-            limit, reset = parse_metric(metric_name, screen)
-            if limit:
-                temp_metrics[metric_name] = {"limit": limit, "reset": reset}
-                
-        if temp_metrics:
-            metrics = temp_metrics
-            break
-            
-        time.sleep(1)
-        
-    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
-    
     with lock:
         results[label] = {
             "cmd": cmd_name,
@@ -186,13 +193,19 @@ def make_colored_bar(percent_val, width=20):
 def main():
     config = load_config()
     accounts = discover_accounts(config)
-    print(f"\n{BOLD}{CYAN}================== Querying Codex Account Limits Sequentially =================={RESET}")
-    print("Setting up secure channel and syncing status commands, please wait...")
+    print(f"\n{BOLD}{CYAN}================== Querying Codex Account Limits in Parallel =================={RESET}")
+    print("Setting up secure channels and syncing status commands, please wait...")
     
     subprocess.run("tmux start-server 2>/dev/null", shell=True)
     
-    for home_dir, cmd_name, label in accounts:
-        fetch_single_account(home_dir, cmd_name, label, config)
+    threads = []
+    for i, (home_dir, cmd_name, label) in enumerate(accounts):
+        t = threading.Thread(target=fetch_single_account_thread, args=(home_dir, cmd_name, label, config, i))
+        threads.append(t)
+        t.start()
+        
+    for t in threads:
+        t.join()
         
     print(f"\n{GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
     print(f" {BOLD}{CYAN}⚙️  Codex Account Real-Time Quota Status{RESET} {GRAY}(Query Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}){RESET}")
