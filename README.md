@@ -17,6 +17,13 @@ A lightweight tool designed for developers managing single or multiple accounts 
 - **Aesthetic Terminal Dashboard**: Renders colorized quota meters and progress bars directly on terminal startup (green for healthy, yellow for warnings, red for depleted).
 - **Broken Connection Alerts**: Logged-out accounts trigger warnings and write to `~/.codex_warning`, alerting you to log in manually at shell launch.
 
+### 📋 System Requirements
+- **OS**: Linux (Ubuntu 20.04+ / Debian 11+ recommended) or macOS.
+- **Tmux**: **Required**. The tool spawns headless tmux sessions to manage, capture pane outputs, and interact with the Codex client via keyboard macros.
+- **Python 3**: **Required** (Python 3.6+). Uses only built-in standard libraries (no third-party pip packages needed).
+- **OpenAI Codex CLI**: The executable command `codex` must be globally available (or mapped via shell aliases).
+- **Node.js / NVM**: Since the Codex CLI client runs on Node.js, the environment must have Node installed or NVM configured (the tool defaults to sourcing `~/.nvm/nvm.sh`).
+
 ### 🚀 Usage Guide (Single vs Multi Account)
 
 #### Single Account Usage (Default)
@@ -71,6 +78,13 @@ To completely remove this tool and all local traces from your system:
 - **终端启动零延迟**：查询**单个账号状态约需 15-20 秒**（如 4 个账号顺序查询需要约 75 秒）。本工具将查询任务放在后台异步执行并写入本地缓存。每次打开终端仅需 0ms 读取本地快照，绝不拖慢终端启动。
 - **精美进度条看板**：在打开终端时自动以原汁原味的彩色进度条展示额度（绿/黄/红三色根据剩余量高亮）。
 - **掉登录高亮报警**：自动识别因过期掉登录的账号并生成警报，在您打开终端时予以红字高亮提醒。
+
+### 📋 系统要求
+- **OS**：Linux（推荐 Ubuntu 20.04+ / Debian 11+ 等发行版）或 macOS。
+- **Tmux**：**必选**。工具使用无界面 tmux 会话在后台拉起、监控、截屏并利用键盘宏交互 Codex 客户端。
+- **Python 3**：**必选** (Python 3.6+)。仅使用系统内置标准库，无需额外执行 pip 安装第三方依赖。
+- **OpenAI Codex CLI**：命令行命令 `codex` 必须在系统全局环境变量中可用（或通过别名进行了正确映射）。
+- **Node.js / NVM**：由于 Codex CLI 客户端基于 Node.js 运行，系统需预先配置 Node.js 环境或安装 NVM（工具默认会自动尝试加载 `~/.nvm/nvm.sh`）。
 
 ### 🚀 单账号与多账号使用指南
 
