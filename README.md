@@ -12,7 +12,7 @@ A lightweight tool designed for developers managing single or multiple accounts 
 - **Maximize Quota Utilization (Intelligent Keepalive)**: Especially in multi-account setups, this tool ensures that each account's sliding weekly quota is activated (locked into a new cycle) immediately upon reset, preventing precious limits from sitting idle and going to waste. It runs as a background cron job and dynamically triggers keepalive macros if the countdown has expired.
 - **TUI Session Reuse (No Dialog Clutter)**: Emulates keyboard macros (`Esc -> Up -> Enter`) to edit the last message in an existing `keepalive` chat room, avoiding polluting your chat list. 
   - *No manual setup required*: The script will automatically send a new message to create the `keepalive` chat room if it does not find one.
-- **Zero-Latency Shell Startup**: Querying metrics for each account takes **15-20 seconds** (e.g. ~75 seconds for 4 accounts). To prevent blocking your shell, this tool runs periodically via system `cron` and saves a local status cache. Opening a terminal displays the cache instantly (0ms delay) with **zero background subprocess overhead**.
+- **Zero-Latency Shell Startup**: Thanks to full multi-threaded parallel execution, querying metrics for all accounts now takes only **15-20 seconds** in total (down from 75 seconds for 4 accounts). To prevent blocking your shell, this tool runs periodically via system `cron` every 3 hours and saves a local status cache. Opening a terminal displays the cache instantly (0ms delay) with **zero background subprocess overhead**.
 - **Aesthetic Terminal Dashboard**: Renders colorized quota meters and progress bars directly on terminal startup (green for healthy, yellow for warnings, red for depleted).
 - **Broken Connection Alerts**: Logged-out accounts trigger warnings and write to `~/.codex_warning`, alerting you to log in manually at shell launch.
 
@@ -72,7 +72,7 @@ To completely remove this tool and all local traces from your system:
 - **最大化额度利用率（按需智能唤醒）**：由于每周额度是滑动重置的，特别是在多账户情况下，该工具能确保每个账号的每周额度（Weekly limit）在刷新重置的第一时间被自动激活（锁定新一轮周期），避免因新周期未开启而导致宝贵的限额被白白闲置和浪费。保活脚本通过 Cron 周期在后台静默执行，仅在检测到到期时智能写入消息激活。
 - **本地会话防污染**：唤醒消息通过 Tmux 键盘宏（`Esc -> Up -> Enter`）在现有的 `keepalive` 对话中覆盖编辑并发送，不在本地 `/resume` 会话列表中留下任何历史垃圾。
   - *无需手动创建对话*：若脚本未检索到名为 `keepalive` 的会话，**会自动发送新消息进行创建**，无须任何前置人工操作。
-- **终端启动零延迟**：查询**单个账号状态约需 15-20 秒**（如 4 个账号顺序查询需要约 75 秒）。本工具由系统 `cron` 定时在后台异步执行并写入本地缓存。每次打开终端仅需 0ms 读取本地快照，**绝不在后台拉起任何异步并发查询进程**，彻底消除性能和会话冲突隐患。
+- **终端启动零延迟**：由于实现了完全的多线程并发，查询**所有账号的状态总共仅需约 15-20 秒**（以前顺序查询 4 个账号需约 75 秒）。本工具由系统 `cron` 定时（每 3 小时）在后台异步执行并写入本地缓存。每次打开终端仅需 0ms 读取本地快照，**绝不在终端启动时在后台拉起任何实时查询进程**，彻底消除性能损耗与会话冲突。
 - **精美进度条看板**：在打开终端时自动以原汁原味的彩色进度条展示额度（绿/黄/红三色根据剩余量高亮）。
 - **掉登录高亮报警**：自动识别因过期掉登录的账号并生成警报，在您打开终端时予以红字高亮提醒。
 
