@@ -1,0 +1,37 @@
+# Codex Keepalive & Monitor Configuration
+
+# ==========================================
+# 1. Environment & Paths
+# ==========================================
+
+# The directory of NVM (Optional, defaults to ~/.nvm if left blank)
+# nvm_dir = "/home/yourname/.nvm"
+
+# ==========================================
+# 2. Keepalive Toggles & Interval
+# ==========================================
+
+# Enable automatic keepalive checking (true/false)
+enable_daily_keepalive = true
+
+# Keepalive check interval in hours (default to 24 hours)
+# Checks will exit instantly if less than this interval has elapsed since the last run
+keepalive_interval_hours = 24
+
+# The chat name in Codex list to search and edit for keeping alive (TUI history edit version)
+# NOTE: The script automatically creates this chat room if it does not exist. No manual setup required.
+keepalive_chat_name = "keepalive"
+
+# ==========================================
+# 3. Terminal Startup Display Toggles
+# ==========================================
+
+# Enable rendering the beautiful quota status snapshot upon terminal launch (true/false)
+enable_terminal_snapshot = true
+
+# Enable rendering high-visibility warnings for logged-out accounts upon terminal launch (true/false)
+enable_login_warning = true
+
+# Enable dynamic discovery of account aliases from ~/.bashrc (true/false)
+# If true, it automatically reads "alias codexX='HOME=... codex'"
+discover_aliases = true
