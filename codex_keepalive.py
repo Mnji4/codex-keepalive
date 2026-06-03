@@ -7,9 +7,13 @@ import os
 import sys
 import threading
 
-# Define state and log paths dynamically based on user home
+# Define state and log paths dynamically based on script location
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_DIR = os.path.join(SCRIPT_DIR, "state")
+os.makedirs(STATE_DIR, exist_ok=True)
+
 USER_HOME = os.path.expanduser("~")
-LOG_FILE = os.path.join(USER_HOME, ".codex_keepalive.log")
+LOG_FILE = os.path.join(STATE_DIR, "keepalive.log")
 
 results = {}
 lock = threading.Lock()
@@ -62,7 +66,7 @@ def load_config():
 
 def cleanup_files(config):
     if config.get("enable_terminal_snapshot", "true").lower() != "true":
-        cache_file = os.path.join(USER_HOME, ".codex_status_cache")
+        cache_file = os.path.join(STATE_DIR, "status_cache")
         if os.path.exists(cache_file):
             try:
                 os.remove(cache_file)
@@ -70,7 +74,7 @@ def cleanup_files(config):
                 pass
                 
     if config.get("enable_login_warning", "true").lower() != "true":
-        warning_file = os.path.join(USER_HOME, ".codex_warning")
+        warning_file = os.path.join(STATE_DIR, "warning")
         if os.path.exists(warning_file):
             try:
                 os.remove(warning_file)
@@ -413,7 +417,7 @@ def main():
             log_message(f"[{label}] {reason} -> Skipping wakeup")
             
     # Write alert log
-    warning_file = os.path.join(USER_HOME, ".codex_warning")
+    warning_file = os.path.join(STATE_DIR, "warning")
     if warnings and config.get("enable_login_warning", "true").lower() == "true":
         try:
             with open(warning_file, "w") as f:
@@ -430,7 +434,7 @@ def main():
                 pass
                 
     # Update quota cache view
-    cache_file = os.path.join(USER_HOME, ".codex_status_cache")
+    cache_file = os.path.join(STATE_DIR, "status_cache")
     if config.get("enable_terminal_snapshot", "true").lower() == "true":
         GREEN = "\033[92m"
         YELLOW = "\033[93m"
@@ -505,7 +509,7 @@ def main():
                 pass
                 
     # Record state execution timestamp
-    state_file = os.path.join(USER_HOME, ".codex_keepalive.state")
+    state_file = os.path.join(STATE_DIR, "keepalive.state")
     try:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(state_file, "w") as f:

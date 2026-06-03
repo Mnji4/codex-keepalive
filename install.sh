@@ -57,15 +57,15 @@ for CONF in "${SHELL_FILES[@]}"; do
         cat << 'EOF' >> "$CONF"
 
 # Codex Connection Alert (Logged Out Warning)
-if [ -f "$HOME/.codex_warning" ]; then
+if [ -f "$HOME/codex-keepalive/state/warning" ]; then
     echo -e "\n\033[91m\033[1m⚠️  [Codex Connection Warning] The following accounts require manual login:\033[0m"
-    cat "$HOME/.codex_warning"
+    cat "$HOME/codex-keepalive/state/warning"
     echo -e "\033[93mHint: Please run the corresponding command (e.g., codex, codex0...) manually to log in and re-bind.\033[0m\n"
 fi
 
 # Codex Quota Status Snapshot Display
-if [ -f "$HOME/.codex_status_cache" ]; then
-    cat "$HOME/.codex_status_cache"
+if [ -f "$HOME/codex-keepalive/state/status_cache" ]; then
+    cat "$HOME/codex-keepalive/state/status_cache"
 fi
 EOF
         echo "Successfully configured hooks in $CONF"

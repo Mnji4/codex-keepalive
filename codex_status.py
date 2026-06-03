@@ -18,6 +18,9 @@ RESET = "\033[0m"
 GRAY = "\033[90m"
 
 USER_HOME = os.path.expanduser("~")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_DIR = os.path.join(SCRIPT_DIR, "state")
+os.makedirs(STATE_DIR, exist_ok=True)
 results = {}
 lock = threading.Lock()
 
@@ -173,7 +176,7 @@ def fetch_single_account_thread(home_dir, cmd_name, label, config, index):
 
     try:
         clean_file_label = re.sub(r'[^a-zA-Z0-9_]', '', label.replace(' ', '_'))
-        screen_file = os.path.join(USER_HOME, f"screen_{clean_file_label}.txt")
+        screen_file = os.path.join(STATE_DIR, f"screen_{clean_file_label}.txt")
         with open(screen_file, "w") as f:
             f.write(screen)
     except Exception:
