@@ -15,7 +15,6 @@ echo "Initializing installation..."
 # Make scripts executable
 chmod +x "$SCRIPT_DIR/codex_keepalive.py"
 chmod +x "$SCRIPT_DIR/codex_keepalive.sh"
-chmod +x "$SCRIPT_DIR/codex_status.py"
 
 # If current directory is not the target installation folder, copy all repository files
 if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
@@ -23,7 +22,6 @@ if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
     mkdir -p "$INSTALL_DIR"
     cp "$SCRIPT_DIR/codex_keepalive.py" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/codex_keepalive.sh" "$INSTALL_DIR/"
-    cp "$SCRIPT_DIR/codex_status.py" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/config.toml" "$INSTALL_DIR/"
 fi
 
@@ -49,7 +47,7 @@ for CONF in "${SHELL_FILES[@]}"; do
 
     # 2. Inject codex_status alias
     if ! grep -q "alias codex_status=" "$CONF"; then
-        echo 'alias codex_status="python3 ~/codex-keepalive/codex_status.py"' >> "$CONF"
+        echo 'alias codex_status="python3 ~/codex-keepalive/codex_keepalive.py"' >> "$CONF"
     fi
     
     # 3. Inject non-blocking startup hooks (ONLY display cache, NO background trigger)

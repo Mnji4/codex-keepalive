@@ -353,6 +353,7 @@ def trigger_keepalive_exec(env_name, env_val, codex_dir, label, config):
 def main():
     check_log_size()
     config = load_config()
+    is_interactive = sys.stdout.isatty() and "--silent" not in sys.argv
     
     # Check if keepalive is globally enabled
     if config.get("enable_daily_keepalive", "true").lower() != "true":
@@ -532,6 +533,9 @@ def main():
             log_message(f"Updated quota status cache to {cache_file}")
         except Exception:
             pass
+            
+        if is_interactive:
+            print("\n" + "\n".join(cache_lines) + "\n")
     else:
         if os.path.exists(cache_file):
             try:
