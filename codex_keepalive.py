@@ -6,6 +6,7 @@ import datetime
 import os
 import sys
 import threading
+import random
 
 # Define state and log paths dynamically based on script location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -249,6 +250,17 @@ def fetch_account_metrics_thread(home_dir, label, config, index):
             "metrics": metrics
         }
 
+def get_random_prose():
+    prose_list = [
+        "在这个寂静的深夜，屏幕散发着微弱的幽蓝色光芒，一行行代码如同流星般在深邃的夜空中划过。指尖在键盘上轻快地跳跃，敲击声宛如一首无声的夜曲，打破了四周的喧嚣。每一个字符的输入，都是对逻辑与秩序 of 探索，每一个函数的调用，都在构建一个虚拟而美妙的微观世界。窗外夜色正浓，月光如流水般洒落在窗台上，与室内的灯光交相辉映。在这个由零和一构成的浩瀚宇宙中，思想如同脱缰的野马自由驰骋，跨越了物理的边界，去寻找解决难题的终极答案。这不仅是一次简单的保活测试，更是灵魂在数字荒野中的一次短途旅行，让代码的律动伴随着深夜的静谧，流淌向未知的远方。",
+        "晨曦微露，第一缕阳光穿透薄雾，轻轻拂过街道两旁林立的霓虹招牌。空气中弥漫着泥土与青草的芬芳，宣告着新一天的降临。远处的山峦在晨光中逐渐清晰，轮廓如同一幅淡雅的水墨画，层叠交错，绵延起伏。时间在这里仿佛放慢了脚步，溪流在山谷间缓缓流淌，发出清脆悦耳的叮咚声。在这个喧嚣世界的一隅，总有一处静谧的角落，让人能够暂时忘却日常的琐碎与忙碌，静静倾听大自然的心跳。让这篇关于清晨与远山的随笔，跨越数字信号的桥梁，化作一行行跳跃的字符，唤醒沉睡中的系统，在新的周期里继续记录时间无声流淌的痕迹。",
+        "漂浮在半空中的城市，正缓缓穿过五彩斑斓的云层。反重力引擎发出低沉而有节奏的嗡嗡声，如同古老巨兽的低吟，在金属舱壁间回荡。窗外是无边无际 of 星海，璀璨的恒星群如同一颗颗碎钻洒在黑色的天鹅绒幕布上。这里的引力参数被精确调整，人们在街区之间轻盈地漂浮、滑翔，仿佛身处一场永无止境的太空华尔兹之中。科技的边缘与科幻的幻想在此处重合，人类的智慧将曾经的不可思议变成了脚下坚实的金属大地。这不仅是对重力的抗拒，更是人类对自由的不懈追求，在星际的洪流中，用坚定的步伐迈向未知的星系与明天的破晓。"
+    ]
+    # Append instruction and timestamp to ensure it's always unique and triggers redraw/rewrite
+    instruction = " 请对以上这段文字作出一篇简短的随笔感悟（约一百字即可）。"
+    timestamp = datetime.datetime.now().strftime(" (Keepalive at %Y-%m-%d %H:%M:%S)")
+    return random.choice(prose_list) + instruction + timestamp
+
 def trigger_keepalive_tui(home_dir, label, config):
     log_message(f"[{label}] Spawning keyboard macro to edit the last message in '{config.get('keepalive_chat_name', 'keepalive')}' to trigger activation...")
     clean_label = re.sub(r'[^a-zA-Z0-9_]', '', label.replace(' ', '_'))
@@ -262,6 +274,8 @@ def trigger_keepalive_tui(home_dir, label, config):
     run_cmd = f"HOME={home_dir} codex"
 
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
+    time.sleep(0.5)
+    subprocess.run(f"tmux send-keys -t {session_name} '{run_cmd}' C-m", shell=True)
     
     # Wait for codex start
     for _ in range(10):
@@ -300,7 +314,7 @@ def trigger_keepalive_tui(home_dir, label, config):
         subprocess.run(f"tmux send-keys -t {session_name} Escape", shell=True)
         time.sleep(1)
         subprocess.run(f"tmux send-keys -t {session_name} '{chat_name}' C-m", shell=True)
-        time.sleep(10)
+        time.sleep(15)
     else:
         log_message(f"[{label}] Successfully found chat '{chat_name}', entering to edit historical message...")
         subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
@@ -322,10 +336,20 @@ def trigger_keepalive_tui(home_dir, label, config):
         
         # Clear and send modified message
         subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
-        new_msg = "keepalive at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        subprocess.run(f"tmux send-keys -t {session_name} '{new_msg}' C-m", shell=True)
-        time.sleep(10)
+        new_msg = get_random_prose()
+        subprocess.run(["tmux", "set-buffer", "-b", "ka_buf", new_msg], check=True)
+        subprocess.run(f"tmux paste-buffer -b ka_buf -t {session_name}", shell=True)
+        subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
+        time.sleep(25)
         
+    try:
+        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
+        screen_ka_file = os.path.join(STATE_DIR, f"screen_ka_{clean_label}.txt")
+        with open(screen_ka_file, "w") as f:
+            f.write(res.stdout)
+    except Exception:
+        pass
+
     subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
     log_message(f"[{label}] Wakeup action completed.")
 
