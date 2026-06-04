@@ -13,21 +13,26 @@ lock = threading.Lock()
 
 def discover_accounts():
     accounts = [
-        (USER_HOME, "codex", "Primary Account (codex)")
+        ("HOME", USER_HOME, os.path.join(USER_HOME, ".codex"), "codex", "Primary Account (codex)")
     ]
     bashrc_path = os.path.join(USER_HOME, ".bashrc")
     if os.path.exists(bashrc_path):
         try:
             with open(bashrc_path, "r") as f:
                 content = f.read()
-            pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\']HOME=([^\s"\']+) codex["\']')
+            pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\'](HOME|CODEX_HOME)=([^\s"\']+) codex["\']')
             matches = pattern.findall(content)
-            seen_homes = {USER_HOME}
-            for cmd_name, home_path in matches:
-                full_home = os.path.realpath(os.path.expanduser(home_path))
-                if full_home not in seen_homes:
-                    seen_homes.add(full_home)
-                    accounts.append((full_home, cmd_name, f"Alias Account ({cmd_name})"))
+            seen_dirs = {os.path.join(USER_HOME, ".codex")}
+            for cmd_name, env_name, path_val in matches:
+                full_path = os.path.realpath(os.path.expanduser(path_val))
+                if env_name == "HOME":
+                    codex_dir = os.path.join(full_path, ".codex")
+                else:
+                    codex_dir = full_path
+                    
+                if codex_dir not in seen_dirs:
+                    seen_dirs.add(codex_dir)
+                    accounts.append((env_name, full_path, codex_dir, cmd_name, f"Alias Account ({cmd_name})"))
         except Exception:
             pass
     return accounts
@@ -59,7 +64,7 @@ def parse_metric(metric_name, screen):
         return m.group(1).strip(), "unknown"
     return None, None
 
-def fetch_single_account_thread(home_dir, cmd_name, label, index):
+def fetch_single_account_thread(env_name, env_val, codex_dir, cmd_name, label, index):
     # Stagger thread starts slightly by 0.5s to prevent concurrent tmux server race condition
     time.sleep(0.5 * index)
     
@@ -71,7 +76,7 @@ def fetch_single_account_thread(home_dir, cmd_name, label, index):
     time.sleep(1)
     
     nvm_cmd = 'export NVM_DIR="/home/lzn/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"HOME={home_dir} codex"
+    run_cmd = f"{env_name}={env_val} codex"
     
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
@@ -129,8 +134,8 @@ def main():
     start_time = time.time()
     
     threads = []
-    for i, (home_dir, cmd_name, label) in enumerate(accounts):
-        t = threading.Thread(target=fetch_single_account_thread, args=(home_dir, cmd_name, label, i))
+    for i, (env_name, env_val, codex_dir, cmd_name, label) in enumerate(accounts):
+        t = threading.Thread(target=fetch_single_account_thread, args=(env_name, env_val, codex_dir, cmd_name, label, i))
         threads.append(t)
         t.start()
         
@@ -145,7 +150,7 @@ def main():
     print("\n================== PARALLEL TEST RESULTS ==================")
     print(f"Total time elapsed: {total_duration:.2f} seconds (Expected ~11s)\n")
     
-    for _, _, label in accounts:
+    for env_name, env_val, codex_dir, cmd_name, label in accounts:
         res = results.get(label)
         if not res:
             print(f" ● {label}: FAILED TO RETRIEVE RESULT")

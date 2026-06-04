@@ -1,125 +1,57 @@
 # Codex Keepalive & Status Monitor / Codex 多账号自动保活与额度状态监控
 
-[English](#english) | [中文](#中文)
-
 ---
 
 ## English
 
-A lightweight tool designed for developers managing single or multiple accounts on the OpenAI Codex CLI client. It ensures your sliding weekly rate limits are kept active seamlessly, keeps track of account metrics, and prints beautiful, instant quota status tables upon opening new terminal windows—without any startup delay.
+A command-line tool for managing and monitoring OpenAI Codex CLI client accounts. It automates keepalive triggers and maintains a local cache of quota metrics to display during shell startup.
 
-### 🌟 Key Features
-- **Maximize Quota Utilization (Intelligent Keepalive)**: Especially in multi-account setups, this tool ensures that each account's sliding weekly quota is activated (locked into a new cycle) immediately upon reset, preventing precious limits from sitting idle and going to waste. It runs as a background cron job and dynamically triggers keepalive macros if the countdown has expired.
-- **TUI Session Reuse (No Dialog Clutter)**: Emulates keyboard macros (`Esc -> Up -> Enter`) to edit the last message in an existing `keepalive` chat room, avoiding polluting your chat list. 
-  - *No manual setup required*: The script will automatically send a new message to create the `keepalive` chat room if it does not find one.
-- **Zero-Latency Shell Startup**: Thanks to full multi-threaded parallel execution, querying metrics for all accounts now takes only **15-20 seconds** in total (down from 75 seconds for 4 accounts). To prevent blocking your shell, this tool runs periodically via system `cron` every 3 hours and saves a local status cache. Opening a terminal displays the cache instantly (0ms delay) with **zero background subprocess overhead**.
-- **Aesthetic Terminal Dashboard**: Renders colorized quota meters and progress bars directly on terminal startup (green for healthy, yellow for warnings, red for depleted).
-- **Broken Connection Alerts**: Logged-out accounts trigger warnings and write to `~/.codex_warning`, alerting you to log in manually at shell launch.
+### Features
+1. **Quota Keepalive**: Triggers execution requests via background cron tasks to lock rate-limit cycles before they expire.
+2. **Tmux Isolation**: Spawns headless tmux sessions to isolate Codex processes.
+3. **Local Metric Caching**: Periodically updates a local cache (`status_cache`) every 3 hours. Shell initialization scripts read directly from this cache to avoid startup latency.
+4. **Login Warning**: Detects unauthenticated/logged-out accounts and writes alerts to `state/warning` for shell initialization scripts to display.
+5. **Multi-Account Discovery**: Scans `~/.bashrc` to parse custom alias configurations using `HOME` or `CODEX_HOME`.
 
-### 📋 System Requirements
-- **OS**: Linux (Ubuntu 20.04+ / Debian 11+ recommended) or macOS.
-- **Tmux**: **Required**. The tool spawns headless tmux sessions to manage, capture pane outputs, and interact with the Codex client via keyboard macros.
-- **Python 3**: **Required** (Python 3.6+). Uses only built-in standard libraries (no third-party pip packages needed).
-- **OpenAI Codex CLI**: The executable command `codex` must be globally available (or mapped via shell aliases).
-- **Node.js / NVM**: Since the Codex CLI client runs on Node.js, the environment must have Node installed or NVM configured (the tool defaults to sourcing `~/.nvm/nvm.sh`).
+### Requirements
+- **OS**: Linux / macOS
+- **Dependencies**: Tmux, Python 3.6+
+- **Codex CLI**: Node.js/NVM environment with the `codex` command.
 
-### 🚀 Usage Guide (Single vs Multi Account)
+### Configurations
+Configurations are defined in `config.toml`:
 
-#### Single Account Usage (Default)
-If you only run one default instance of Codex (configured at your root user directory), **no configuration is needed**. The installer will automatically register and monitor your primary `codex` command.
-
-#### Multi Account Usage
-If you are managing multiple accounts, define your aliases in your `~/.bashrc` before running the installer. E.g.:
-```bash
-alias codex0="HOME=~/.codex_user0 codex"
-alias codex1="HOME=~/.codex_user1 codex"
-alias codex2="HOME=~/.codex_user2 codex"
-```
-The script will dynamically discover these alias commands and monitor all accounts accordingly.
-
-### ⚙️ Config & Deleting Features
-
-You can configure feature toggles inside `~/codex-keepalive/config.toml`:
-
-| Parameter | Type | Default | Description |
+| Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `enable_daily_keepalive` | Boolean | `true` | Enable/Disable automatic keepalive check runs. |
-| `enable_terminal_snapshot`| Boolean | `true` | Show colorized progress snapshot on terminal startup. |
-| `enable_login_warning` | Boolean | `true` | Show high-visibility warnings for logged-out accounts. |
-
-#### How to Turn Off or Delete Specific Features
-- If you set `enable_terminal_snapshot = false` or `enable_login_warning = false` in `config.toml`, **the script will automatically clean up the local cached files** (`~/codex-keepalive/state/status_cache` and `~/codex-keepalive/state/warning`), immediately stopping the terminal output.
-
-#### Complete Uninstall & Cleanup
-To completely remove this tool and all local traces from your system:
-1. Delete the installation directory (this automatically deletes all local logs and caches stored inside `~/codex-keepalive/state/`):
-   ```bash
-   rm -rf ~/codex-keepalive
-   ```
-2. Open `~/.bashrc` or `~/.zshrc` (depending on your shell) and delete the lines appended at the end of the file (under the `# Codex Connection Alert` header, including the `codex_status` alias).
-3. (Optional) If you have legacy cache files in your home directory from older versions, delete them:
-   ```bash
-   rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
-   ```
+| `enable_daily_keepalive` | Boolean | `true` | Enable background keepalive runs. |
+| `enable_terminal_snapshot`| Boolean | `true` | Render colorized quota bars in terminal startup. |
+| `enable_login_warning` | Boolean | `true` | Display warning messages for logged-out accounts. |
+| `discover_aliases` | Boolean | `true` | Discover `HOME` and `CODEX_HOME` aliases from `~/.bashrc`. |
 
 ---
 
 ## 中文
 
-为 OpenAI Codex CLI 命令行客户端用户量身定制的轻量级多账号管理工具。支持单账号/多账号保活（按需激活）、本地会话防污染、掉线提醒以及免卡顿的终端打开实时额度进度条渲染。
+用于管理与监控 OpenAI Codex CLI 客户端的命令行工具。通过后台定时任务执行保活逻辑，并缓存额度数据以供终端启动时读取。
 
-### 🌟 核心功能
-- **最大化额度利用率（按需智能唤醒）**：由于每周额度是滑动重置的，特别是在多账户情况下，该工具能确保每个账号的每周额度（Weekly limit）在刷新重置的第一时间被自动激活（锁定新一轮周期），避免因新周期未开启而导致宝贵的限额被白白闲置和浪费。保活脚本通过 Cron 周期在后台静默执行，仅在检测到到期时智能写入消息激活。
-- **本地会话防污染**：唤醒消息通过 Tmux 键盘宏（`Esc -> Up -> Enter`）在现有的 `keepalive` 对话中覆盖编辑并发送，不在本地 `/resume` 会话列表中留下任何历史垃圾。
-  - *无需手动创建对话*：若脚本未检索到名为 `keepalive` 的会话，**会自动发送新消息进行创建**，无须任何前置人工操作。
-- **终端启动零延迟**：由于实现了完全的多线程并发，查询**所有账号的状态总共仅需约 15-20 秒**（以前顺序查询 4 个账号需约 75 秒）。本工具由系统 `cron` 定时（每 3 小时）在后台异步执行并写入本地缓存。每次打开终端仅需 0ms 读取本地快照，**绝不在终端启动时在后台拉起任何实时查询进程**，彻底消除性能损耗与会话冲突。
-- **精美进度条看板**：在打开终端时自动以原汁原味的彩色进度条展示额度（绿/黄/红三色根据剩余量高亮）。
-- **掉登录高亮报警**：自动识别因过期掉登录的账号并生成警报，在您打开终端时予以红字高亮提醒。
+### 功能说明
+1. **额度自动保活**：定时通过后台执行非交互式 `codex exec`，以激活并锁定额度周期，防止滑动周期过期。
+2. **Tmux 隔离环境**：通过独立的无界面 tmux 会话运行 Codex 客户端，隔离前台交互。
+3. **本地状态缓存**：默认每 3 小时通过 cron 触发更新本地缓存文件 (`status_cache`)。终端启动脚本直接读取该缓存，消除实时查询带来的网络延迟。
+4. **登录失效警报**：自动识别掉线账户，将异常写入 `state/warning`，并在终端启动时高亮提醒。
+5. **多账号解析**：扫描 `~/.bashrc` 中的别名定义，自动支持基于 `HOME` 或 `CODEX_HOME` 的多账户环境。
 
-### 📋 系统要求
-- **OS**：Linux（推荐 Ubuntu 20.04+ / Debian 11+ 等发行版）或 macOS。
-- **Tmux**：**必选**。工具使用无界面 tmux 会话在后台拉起、监控、截屏并利用键盘宏交互 Codex 客户端。
-- **Python 3**：**必选** (Python 3.6+)。仅使用系统内置标准库，无需额外执行 pip 安装第三方依赖。
-- **OpenAI Codex CLI**：命令行命令 `codex` 必须在系统全局环境变量中可用（或通过别名进行了正确映射）。
-- **Node.js / NVM**：由于 Codex CLI 客户端基于 Node.js 运行，系统需预先配置 Node.js environment 或安装 NVM（工具默认会自动尝试加载 `~/.nvm/nvm.sh`）。
+### 系统要求
+- **操作系统**：Linux / macOS
+- **依赖软件**：Tmux, Python 3.6+
+- **Codex 客户端**：已安装并配置 Node.js/NVM 环境，且 `codex` 命令可用。
 
-### 🚀 单账号与多账号使用指南
+### 配置参数
+配置文件为 `config.toml`：
 
-#### 单账号使用（默认）
-如果您只使用单个默认的 Codex 账号，**无需进行任何配置**。运行安装脚本后，工具会自动绑定并监控您的主 `codex` 账号。
-
-#### 多账号使用
-如果您使用多账号，请先在您的 `~/.bashrc` 中配置好对应的命令别名：
-```bash
-alias codex0="HOME=~/.codex_user0 codex"
-alias codex1="HOME=~/.codex_user1 codex"
-alias codex2="HOME=~/.codex_user2 codex"
-```
-完成配置后运行安装脚本，工具将自动扫描并动态解析所有配置的账号。
-
-### ⚙️ 功能开关与删除清理
-
-您可以通过修改 `~/codex-keepalive/config.toml` 来配置功能开关：
-
-| 配置参数 | 类型 | 默认值 | 作用说明 |
+| 配置键 | 类型 | 默认值 | 描述 |
 | :--- | :--- | :--- | :--- |
-| `enable_daily_keepalive` | 布尔值 | `true` | 是否启用后台自动保活检测任务。 |
-| `enable_terminal_snapshot`| 布尔值 | `true` | 是否在终端启动时打印彩色额度进度条快照。 |
-| `enable_login_warning` | 布尔值 | `true` | 是否在终端启动时提示掉登录的账号。 |
-
-#### 如何关闭或删除特定功能
-- 如果您在 `config.toml` 中将 `enable_terminal_snapshot` 或 `enable_login_warning` 设为 `false`，**脚本将在下一次运行时自动删除对应的本地缓存文件**（`~/codex-keepalive/state/status_cache` 或 `~/codex-keepalive/state/warning`），从而立刻停止在终端启动时显示相应信息。
-
-#### 彻底卸载与清理垃圾
-如果您想彻底删除此工具及系统上的所有本地痕迹：
-1. 删除安装目录（这会自动清空并删除 `~/codex-keepalive/state/` 下的所有日志、缓存与临时状态文件）：
-   ```bash
-   rm -rf ~/codex-keepalive
-   ```
-2. 打开 `~/.bashrc` 或 `~/.zshrc`（取决于您使用的 shell），删除文件末尾追加的命令别名及 hooks 脚本块（在 `# Codex Connection Alert` 注释之后的所有内容）。
-3. （可选）如果您有旧版残留于家目录的缓存，可运行以下命令手动清理：
-   ```bash
-   rm -f ~/.codex_status_cache ~/.codex_warning ~/.codex_keepalive.state ~/.codex_keepalive.log
-   ```
-
----
+| `enable_daily_keepalive` | 布尔值 | `true` | 是否启用后台保活检测。 |
+| `enable_terminal_snapshot`| 布尔值 | `true` | 是否在终端启动时显示彩色额度进度条。 |
+| `enable_login_warning` | 布尔值 | `true` | 是否在终端启动时提示未登录账户。 |
+| `discover_aliases` | 布尔值 | `true` | 是否从 `~/.bashrc` 自动扫描 `HOME` 或 `CODEX_HOME` 别名。 |

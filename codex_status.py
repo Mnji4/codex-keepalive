@@ -50,7 +50,7 @@ def load_config():
 
 def discover_accounts(config):
     accounts = [
-        (USER_HOME, "codex", "Primary Account (codex)")
+        ("HOME", USER_HOME, os.path.join(USER_HOME, ".codex"), "codex", "Primary Account (codex)")
     ]
     
     if config.get("discover_aliases", "true").lower() != "true":
@@ -64,15 +64,20 @@ def discover_accounts(config):
         with open(bashrc_path, "r") as f:
             content = f.read()
             
-        pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\']HOME=([^\s"\']+) codex["\']')
+        pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\'](HOME|CODEX_HOME)=([^\s"\']+) codex["\']')
         matches = pattern.findall(content)
         
-        seen_homes = {USER_HOME}
-        for cmd_name, home_path in matches:
-            full_home = os.path.realpath(os.path.expanduser(home_path))
-            if full_home not in seen_homes:
-                seen_homes.add(full_home)
-                accounts.append((full_home, cmd_name, f"Alias Account ({cmd_name})"))
+        seen_dirs = {os.path.join(USER_HOME, ".codex")}
+        for cmd_name, env_name, path_val in matches:
+            full_path = os.path.realpath(os.path.expanduser(path_val))
+            if env_name == "HOME":
+                codex_dir = os.path.join(full_path, ".codex")
+            else:
+                codex_dir = full_path
+                
+            if codex_dir not in seen_dirs:
+                seen_dirs.add(codex_dir)
+                accounts.append((env_name, full_path, codex_dir, cmd_name, f"Alias Account ({cmd_name})"))
     except Exception:
         pass
         
@@ -107,7 +112,7 @@ def parse_metric(metric_name, screen):
         
     return None, None
 
-def fetch_single_account_thread(home_dir, cmd_name, label, config, index):
+def fetch_single_account_thread(env_name, env_val, codex_dir, cmd_name, label, config, index):
     # Stagger thread starts slightly by 1.0s to prevent concurrent tmux server race condition
     time.sleep(1.0 * index)
     
@@ -120,7 +125,7 @@ def fetch_single_account_thread(home_dir, cmd_name, label, config, index):
     
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"HOME={home_dir} codex"
+    run_cmd = f"{env_name}={env_val} codex"
     
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
@@ -178,7 +183,9 @@ def fetch_single_account_thread(home_dir, cmd_name, label, config, index):
     with lock:
         results[label] = {
             "cmd": cmd_name,
-            "home": home_dir,
+            "env_name": env_name,
+            "env_val": env_val,
+            "codex_dir": codex_dir,
             "email": email,
             "metrics": metrics,
             "raw": screen
@@ -212,8 +219,8 @@ def main():
     subprocess.run("tmux start-server 2>/dev/null", shell=True)
     
     threads = []
-    for i, (home_dir, cmd_name, label) in enumerate(accounts):
-        t = threading.Thread(target=fetch_single_account_thread, args=(home_dir, cmd_name, label, config, i))
+    for i, (env_name, env_val, codex_dir, cmd_name, label) in enumerate(accounts):
+        t = threading.Thread(target=fetch_single_account_thread, args=(env_name, env_val, codex_dir, cmd_name, label, config, i))
         threads.append(t)
         t.start()
         
@@ -224,7 +231,7 @@ def main():
     print(f" {BOLD}{CYAN}⚙️  Codex Account Real-Time Quota Status{RESET} {GRAY}(Query Time: {datetime.now().strftime('%Y-%m-%d %H:%M')}){RESET}")
     print(f"{GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
     
-    for _, _, label in accounts:
+    for env_name, env_val, codex_dir, cmd_name, label in accounts:
         res = results.get(label)
         if not res or res["email"] == "unknown" or res["email"] == "未知" or not res["metrics"]:
             cmd_name = res["cmd"] if res else "codex"

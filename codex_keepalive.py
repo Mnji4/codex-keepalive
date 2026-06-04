@@ -84,7 +84,7 @@ def cleanup_files(config):
 
 def discover_accounts(config):
     accounts = [
-        (USER_HOME, "codex", "Primary Account (codex)")
+        ("HOME", USER_HOME, os.path.join(USER_HOME, ".codex"), "codex", "Primary Account (codex)")
     ]
     
     if config.get("discover_aliases", "true").lower() != "true":
@@ -98,15 +98,20 @@ def discover_accounts(config):
         with open(bashrc_path, "r") as f:
             content = f.read()
             
-        pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\']HOME=([^\s"\']+) codex["\']')
+        pattern = re.compile(r'alias\s+([a-zA-Z0-9_-]+)\s*=\s*["\'](HOME|CODEX_HOME)=([^\s"\']+) codex["\']')
         matches = pattern.findall(content)
         
-        seen_homes = {USER_HOME}
-        for cmd_name, home_path in matches:
-            full_home = os.path.realpath(os.path.expanduser(home_path))
-            if full_home not in seen_homes:
-                seen_homes.add(full_home)
-                accounts.append((full_home, cmd_name, f"Alias Account ({cmd_name})"))
+        seen_dirs = {os.path.join(USER_HOME, ".codex")}
+        for cmd_name, env_name, path_val in matches:
+            full_path = os.path.realpath(os.path.expanduser(path_val))
+            if env_name == "HOME":
+                codex_dir = os.path.join(full_path, ".codex")
+            else:
+                codex_dir = full_path
+                
+            if codex_dir not in seen_dirs:
+                seen_dirs.add(codex_dir)
+                accounts.append((env_name, full_path, codex_dir, cmd_name, f"Alias Account ({cmd_name})"))
     except Exception:
         pass
         
@@ -176,7 +181,7 @@ def parse_reset_time_to_datetime(reset_str):
         
     return None
 
-def fetch_account_metrics_thread(home_dir, label, config, index):
+def fetch_account_metrics_thread(env_name, env_val, codex_dir, label, config, index):
     # Stagger thread starts slightly by 1.0s to prevent concurrent tmux server race condition
     time.sleep(1.0 * index)
     
@@ -189,7 +194,7 @@ def fetch_account_metrics_thread(home_dir, label, config, index):
     
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"HOME={home_dir} codex"
+    run_cmd = f"{env_name}={env_val} codex"
 
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
@@ -259,7 +264,7 @@ def get_random_prose():
     ]
     return random.choice(prose_list)
 
-def trigger_keepalive_exec(home_dir, label, config):
+def trigger_keepalive_exec(env_name, env_val, codex_dir, label, config):
     log_message(f"[{label}] Triggering non-interactive keepalive wakeup via codex exec...")
     
     # 1. Resolve sessions directory for the current date
@@ -267,7 +272,7 @@ def trigger_keepalive_exec(home_dir, label, config):
     year_str = now.strftime("%Y")
     month_str = now.strftime("%m")
     day_str = now.strftime("%d")
-    session_dir = os.path.join(home_dir, ".codex", "sessions", year_str, month_str, day_str)
+    session_dir = os.path.join(codex_dir, "sessions", year_str, month_str, day_str)
     
     # Scan existing files before running
     existing_files = set()
@@ -281,7 +286,7 @@ def trigger_keepalive_exec(home_dir, label, config):
     prose = get_random_prose()
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"HOME={home_dir} codex exec \"{prose}\" --skip-git-repo-check"
+    run_cmd = f"{env_name}={env_val} codex exec \"{prose}\" --skip-git-repo-check"
     full_cmd = f"{nvm_cmd} && {run_cmd}"
     
     try:
@@ -329,7 +334,7 @@ def trigger_keepalive_exec(home_dir, label, config):
                     log_message(f"[{label}] Failed to delete session file {f}: {e}")
                     
                 # Clean history.jsonl
-                history_file = os.path.join(home_dir, ".codex", "history.jsonl")
+                history_file = os.path.join(codex_dir, "history.jsonl")
                 if os.path.exists(history_file):
                     m = re.search(r'rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-([a-f0-9-]+)\.jsonl', f)
                     if m:
@@ -363,8 +368,8 @@ def main():
     
     # Concurrent parallel queries for all accounts
     threads = []
-    for i, (home_dir, cmd_name, label) in enumerate(accounts):
-        t = threading.Thread(target=fetch_account_metrics_thread, args=(home_dir, label, config, i))
+    for i, (env_name, env_val, codex_dir, cmd_name, label) in enumerate(accounts):
+        t = threading.Thread(target=fetch_account_metrics_thread, args=(env_name, env_val, codex_dir, label, config, i))
         threads.append(t)
         t.start()
         
@@ -373,7 +378,7 @@ def main():
         
     warnings = []
     
-    for home_dir, cmd_name, label in accounts:
+    for env_name, env_val, codex_dir, cmd_name, label in accounts:
         res = results.get(label)
         if not res or res["email"] == "unknown" or res["email"] == "未知" or not res["metrics"]:
             email = res["email"] if res else "unknown"
@@ -437,7 +442,7 @@ def main():
                     
         if need_wakeup:
             log_message(f"[{label}] {reason} -> Triggering keepalive wakeup")
-            trigger_keepalive_exec(home_dir, label, config)
+            trigger_keepalive_exec(env_name, env_val, codex_dir, label, config)
             time.sleep(3)
         else:
             log_message(f"[{label}] {reason} -> Skipping wakeup")
@@ -486,7 +491,7 @@ def main():
         cache_lines.append(f" {BOLD}{CYAN}⚙️  Codex Account Quota Snapshot{RESET} {GRAY}(Updated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}){RESET}")
         cache_lines.append(f"{GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
         
-        for _, cmd_name, label in accounts:
+        for env_name, env_val, codex_dir, cmd_name, label in accounts:
             res = results.get(label)
             if not res or res["email"] == "unknown" or res["email"] == "未知" or not res["metrics"]:
                 cache_lines.append(f" {BOLD}● {label}{RESET}  {RED}[FAILED OR NOT LOGGED IN]{RESET}")
