@@ -12,6 +12,7 @@ A command-line tool for managing and monitoring OpenAI Codex CLI client accounts
 3. **Local Metric Caching**: Periodically updates a local cache (`status_cache`) every 3 hours. Shell initialization scripts read directly from this cache to avoid startup latency.
 4. **Login Warning**: Detects unauthenticated/logged-out accounts and writes alerts to `state/warning` for shell initialization scripts to display.
 5. **Multi-Account Discovery**: Scans `~/.bashrc` to parse custom alias configurations using `HOME` or `CODEX_HOME`.
+6. **Session Migration & Switching**: Relocates active conversation sessions dynamically between accounts using `codex_switch` based on quota availability formulas.
 
 ### Requirements
 - **OS**: Linux / macOS
@@ -40,6 +41,7 @@ Configurations are defined in `config.toml`:
 3. **本地状态缓存**：默认每 3 小时通过 cron 触发更新本地缓存文件 (`status_cache`)。终端启动脚本直接读取该缓存，消除实时查询带来的网络延迟。
 4. **登录失效警报**：自动识别掉线账户，将异常写入 `state/warning`，并在终端启动时高亮提醒。
 5. **多账号解析**：扫描 `~/.bashrc` 中的别名定义，自动支持基于 `HOME` 或 `CODEX_HOME` 的多账户环境。
+6. **会话自动迁移与切换**：提供 `codex_switch` 命令，根据额度公式自动推荐最优账号，一键迁移最近活跃的会话数据及历史记录，并以绕过沙箱与审批模式启动新客户端。
 
 ### 系统要求
 - **操作系统**：Linux / macOS
