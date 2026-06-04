@@ -252,105 +252,97 @@ def fetch_account_metrics_thread(home_dir, label, config, index):
 
 def get_random_prose():
     prose_list = [
-        "在这个寂静的深夜，屏幕散发着微弱的幽蓝色光芒，一行行代码如同流星般在深邃的夜空中划过。指尖在键盘上轻快地跳跃，敲击声宛如一首无声的夜曲，打破了四周的喧嚣。每一个字符的输入，都是对逻辑与秩序 of 探索，每一个函数的调用，都在构建一个虚拟而美妙的微观世界。窗外夜色正浓，月光如流水般洒落在窗台上，与室内的灯光交相辉映。在这个由零和一构成的浩瀚宇宙中，思想如同脱缰的野马自由驰骋，跨越了物理的边界，去寻找解决难题的终极答案。这不仅是一次简单的保活测试，更是灵魂在数字荒野中的一次短途旅行，让代码的律动伴随着深夜的静谧，流淌向未知的远方。",
-        "晨曦微露，第一缕阳光穿透薄雾，轻轻拂过街道两旁林立的霓虹招牌。空气中弥漫着泥土与青草的芬芳，宣告着新一天的降临。远处的山峦在晨光中逐渐清晰，轮廓如同一幅淡雅的水墨画，层叠交错，绵延起伏。时间在这里仿佛放慢了脚步，溪流在山谷间缓缓流淌，发出清脆悦耳的叮咚声。在这个喧嚣世界的一隅，总有一处静谧的角落，让人能够暂时忘却日常的琐碎与忙碌，静静倾听大自然的心跳。让这篇关于清晨与远山的随笔，跨越数字信号的桥梁，化作一行行跳跃的字符，唤醒沉睡中的系统，在新的周期里继续记录时间无声流淌的痕迹。",
-        "漂浮在半空中的城市，正缓缓穿过五彩斑斓的云层。反重力引擎发出低沉而有节奏的嗡嗡声，如同古老巨兽的低吟，在金属舱壁间回荡。窗外是无边无际 of 星海，璀璨的恒星群如同一颗颗碎钻洒在黑色的天鹅绒幕布上。这里的引力参数被精确调整，人们在街区之间轻盈地漂浮、滑翔，仿佛身处一场永无止境的太空华尔兹之中。科技的边缘与科幻的幻想在此处重合，人类的智慧将曾经的不可思议变成了脚下坚实的金属大地。这不仅是对重力的抗拒，更是人类对自由的不懈追求，在星际的洪流中，用坚定的步伐迈向未知的星系与明天的破晓。"
+        "在这个寂静的深夜，屏幕散发着微弱的幽蓝色光芒，一行行代码如同流星般在深邃的夜空中划过。指尖在键盘上轻快地跳跃，敲击声宛如一首无声的夜曲，打破了四周的喧嚣。每一个字符的输入，都是对逻辑与秩序的探索，每一个函数的调用，都在构建一个虚拟而美妙的微观世界。窗外夜色正浓，月光如流水般洒落在窗台上，与室内的灯光交相辉映。在这个由零和一构成的浩瀚宇宙中，思想如同脱缰的野马自由驰骋，跨越了物理的边界，去寻找解决难题的终极答案。这不仅是一次简单的保活测试，更是灵魂在数字荒野中的一次短途旅行，让代码的律动伴随着深夜的静谧，流淌向未知的远方。夜空深邃，繁星闪烁，正如那浩瀚数据海洋中闪烁的每一个智慧火花，指引着前行的路途。",
+        "晨曦微露，第一缕阳光穿透薄雾，轻轻拂过街道两旁林立的霓虹招牌。空气中弥漫着泥土与青草的芬芳，宣告着新一天的降临。远处的山峦在晨光中逐渐清晰，轮廓如同一幅淡雅的水墨画，层叠交错，绵延起伏。在这个万物苏醒的时刻，城市的脉搏开始缓缓跳动，行人的脚步声、车辆的喧嚣声交织在一起，奏响了日常的交响乐章。对于追逐梦想的人而言，每一个清晨都是一个新的起点，是拂去昨日疲惫、重新扬帆起航的契机。我们在时间的河流中穿梭，寻找着属于自己的航向，纵使前路漫漫，只要心中有光，便无惧风雨。让这缕清晨的微风带走所有的倦意，在数字世界与现实交织的边缘，用坚实的步伐踏出一条通往未来的宽广道路。",
+        "午后阳光正好，透过落地窗洒在斑驳的木质桌面上，折射出温暖而柔和的金黄色光晕。一杯清茶正袅袅升起白雾，茶香在空气中悄然弥漫，带走了一整天伏案工作的疲惫。指尖抚过书页，发出细微而清脆的声响，那墨香与茶香交织在一起，构筑起一个让人心安的静谧角落。在这个快节奏的时代里，能够拥有一段不受打扰的午后时光，静静地思考与阅读，实为一种难得的奢求。每一个字句的跳跃，都在脑海中激荡起层层涟漪，引发对生命、宇宙以及微观世界的无限遐想。生活或许琐碎繁杂，但只要我们愿意驻足片刻，在这一呼一吸之间，便能感受到岁月的静好与生命本真的纯粹，让思绪在这一刻自由地漂浮、沉淀。",
+        "秋风拂过，落叶如同一只只金黄色的蝴蝶，在空中轻盈地盘旋、飞舞，最后缓缓铺满林荫小道。踩在上面发出沙沙的声响，那是大自然在季节更替时奏响的独特乐章。仰望天空，天高云淡，瓦蓝得没有一丝杂质，让人心旷神怡。秋天不仅是收获的季节，更是思索与沉淀的时刻。经历了夏天的喧嚣与狂热，大自然在秋天展现出一种宁静而内敛的美。树木褪去了繁华的绿装，以最本真的姿态迎接冬天的洗礼。这就像人生的旅途，在经历了繁华与喧闹之后，终究要回归内心的宁静，去审视自己的所得与所失，在反思中积蓄力量，等待下一个春天的萌芽。这沙沙的落叶声，是岁月沉淀的足迹，也是生命不息的赞歌。"
     ]
-    # Append instruction and timestamp to ensure it's always unique and triggers redraw/rewrite
-    instruction = " 请对以上这段文字作出一篇简短的随笔感悟（约一百字即可）。"
-    timestamp = datetime.datetime.now().strftime(" (Keepalive at %Y-%m-%d %H:%M:%S)")
-    return random.choice(prose_list) + instruction + timestamp
+    return random.choice(prose_list)
 
-def trigger_keepalive_tui(home_dir, label, config):
-    log_message(f"[{label}] Spawning keyboard macro to edit the last message in '{config.get('keepalive_chat_name', 'keepalive')}' to trigger activation...")
-    clean_label = re.sub(r'[^a-zA-Z0-9_]', '', label.replace(' ', '_'))
-    session_name = f"keepalive_trigger_{clean_label}"
-    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
-    subprocess.run(f"tmux new-session -d -s {session_name} bash", shell=True)
-    time.sleep(1)
+def trigger_keepalive_exec(home_dir, label, config):
+    log_message(f"[{label}] Triggering non-interactive keepalive wakeup via codex exec...")
     
+    # 1. Resolve sessions directory for the current date
+    now = datetime.datetime.now()
+    year_str = now.strftime("%Y")
+    month_str = now.strftime("%m")
+    day_str = now.strftime("%d")
+    session_dir = os.path.join(home_dir, ".codex", "sessions", year_str, month_str, day_str)
+    
+    # Scan existing files before running
+    existing_files = set()
+    if os.path.exists(session_dir):
+        try:
+            existing_files = set(os.listdir(session_dir))
+        except Exception:
+            pass
+            
+    # 2. Run codex exec non-interactively
+    prose = get_random_prose()
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"HOME={home_dir} codex"
-
-    subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
-    time.sleep(0.5)
-    subprocess.run(f"tmux send-keys -t {session_name} '{run_cmd}' C-m", shell=True)
+    run_cmd = f"HOME={home_dir} codex exec \"{prose}\" --skip-git-repo-check"
+    full_cmd = f"{nvm_cmd} && {run_cmd}"
     
-    # Wait for codex start
-    for _ in range(10):
-        time.sleep(1)
-        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        if "model:" in res.stdout or "Tip:" in res.stdout:
-            break
-            
-    # Enter /resume list
-    subprocess.run(f"tmux send-keys -t {session_name} '/resume' C-m", shell=True)
-    
-    # Wait for list load
-    for _ in range(10):
-        time.sleep(1)
-        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        if "enter resume" in res.stdout or "Sort:" in res.stdout:
-            break
-            
-    # Search for keepalive
-    chat_name = config.get("keepalive_chat_name", "keepalive")
-    subprocess.run(f"tmux send-keys -t {session_name} '{chat_name}'", shell=True)
-    time.sleep(2)
-    
-    # Check if found
-    res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-    
-    no_chat_indicators = ["No results", "0 / 0", "No saved chat", "No matches"]
-    has_keepalive = True
-    for indicator in no_chat_indicators:
-        if indicator in res.stdout:
-            has_keepalive = False
-            break
-            
-    if not has_keepalive:
-        log_message(f"[{label}] Chat room named '{chat_name}' not found. Auto sending message to create it.")
-        subprocess.run(f"tmux send-keys -t {session_name} Escape", shell=True)
-        time.sleep(1)
-        subprocess.run(f"tmux send-keys -t {session_name} '{chat_name}' C-m", shell=True)
-        time.sleep(15)
-    else:
-        log_message(f"[{label}] Successfully found chat '{chat_name}', entering to edit historical message...")
-        subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
-        
-        # Wait for loading
-        for _ in range(10):
-            time.sleep(1)
-            res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-            if "enter resume" not in res.stdout and "›" in res.stdout:
-                break
-                
-        # Esc -> Up -> Enter to edit
-        subprocess.run(f"tmux send-keys -t {session_name} Escape", shell=True)
-        time.sleep(0.5)
-        subprocess.run(f"tmux send-keys -t {session_name} Up", shell=True)
-        time.sleep(0.5)
-        subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
-        time.sleep(0.5)
-        
-        # Clear and send modified message
-        subprocess.run(f"tmux send-keys -t {session_name} C-u", shell=True)
-        new_msg = get_random_prose()
-        subprocess.run(["tmux", "set-buffer", "-b", "ka_buf", new_msg], check=True)
-        subprocess.run(f"tmux paste-buffer -b ka_buf -t {session_name}", shell=True)
-        subprocess.run(f"tmux send-keys -t {session_name} C-m", shell=True)
-        time.sleep(25)
-        
     try:
-        res = subprocess.run(f"tmux capture-pane -t {session_name} -p", shell=True, stdout=subprocess.PIPE, text=True)
-        screen_ka_file = os.path.join(STATE_DIR, f"screen_ka_{clean_label}.txt")
-        with open(screen_ka_file, "w") as f:
-            f.write(res.stdout)
-    except Exception:
-        pass
-
-    subprocess.run(f"tmux kill-session -t {session_name} 2>/dev/null", shell=True)
+        # Run it with 60 seconds timeout. It will block until completed.
+        subprocess.run(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+        log_message(f"[{label}] Codex exec run completed successfully.")
+    except subprocess.TimeoutExpired:
+        log_message(f"[{label}] Warning: Codex exec run timed out after 60 seconds.")
+    except Exception as e:
+        log_message(f"[{label}] Error running codex exec: {e}")
+        
+    # 3. Scan for new session files created during this run
+    new_files = set()
+    if os.path.exists(session_dir):
+        try:
+            new_files = set(os.listdir(session_dir)) - existing_files
+        except Exception:
+            pass
+            
+    # 4. Delete the new session files and clean up history.jsonl
+    for f in new_files:
+        if f.endswith(".jsonl"):
+            f_path = os.path.join(session_dir, f)
+            
+            # Verify the file contents actually contain the keepalive prose we just sent
+            is_keepalive = False
+            try:
+                if os.path.exists(f_path):
+                    with open(f_path, "r", encoding="utf-8") as sf:
+                        content = sf.read()
+                        if prose in content:
+                            is_keepalive = True
+                        else:
+                            log_message(f"[{label}] Session file {f} did not contain the keepalive prose. Skipping deletion.")
+                else:
+                    log_message(f"[{label}] Session file {f} does not exist at {f_path}")
+            except Exception as ve:
+                log_message(f"[{label}] Failed to validate session file {f}: {ve}")
+                
+            if is_keepalive:
+                try:
+                    os.remove(f_path)
+                    log_message(f"[{label}] Successfully cleaned up local session file: {f}")
+                except Exception as e:
+                    log_message(f"[{label}] Failed to delete session file {f}: {e}")
+                    
+                # Clean history.jsonl
+                history_file = os.path.join(home_dir, ".codex", "history.jsonl")
+                if os.path.exists(history_file):
+                    m = re.search(r'rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-([a-f0-9-]+)\.jsonl', f)
+                    if m:
+                        session_id = m.group(1)
+                        try:
+                            with open(history_file, "r") as hf:
+                                lines = hf.readlines()
+                            new_lines = [line for line in lines if session_id not in line]
+                            with open(history_file, "w") as hf:
+                                hf.writelines(new_lines)
+                            log_message(f"[{label}] Cleaned history.jsonl entry for session: {session_id}")
+                        except Exception as he:
+                            log_message(f"[{label}] Failed to clean history.jsonl: {he}")
     log_message(f"[{label}] Wakeup action completed.")
 
 def main():
@@ -362,7 +354,7 @@ def main():
         cleanup_files(config)
         sys.exit(0)
         
-    log_message("================== Starting Codex Keepalive Logic (TUI History Edit Version) ==================")
+    log_message("================== Starting Codex Keepalive Logic (Non-Interactive Exec Version) ==================")
     accounts = discover_accounts(config)
     log_message(f"Dynamically discovered {len(accounts)} Codex account configuration(s).")
     
@@ -445,7 +437,7 @@ def main():
                     
         if need_wakeup:
             log_message(f"[{label}] {reason} -> Triggering keepalive wakeup")
-            trigger_keepalive_tui(home_dir, label, config)
+            trigger_keepalive_exec(home_dir, label, config)
             time.sleep(3)
         else:
             log_message(f"[{label}] {reason} -> Skipping wakeup")
