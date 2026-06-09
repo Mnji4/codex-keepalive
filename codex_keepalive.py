@@ -349,8 +349,9 @@ def trigger_keepalive_exec(env_name, env_val, codex_dir, label, config):
             if is_keepalive:
                 try:
                     os.remove(f_path)
-                except:
-                    pass
+                    log_message(f"[{label}] Successfully cleaned up local session file: {f}")
+                except Exception as e:
+                    log_message(f"[{label}] Failed to delete session file {f}: {e}")
                     
                 history_file = os.path.join(codex_dir, "history.jsonl")
                 if os.path.exists(history_file):
@@ -363,8 +364,9 @@ def trigger_keepalive_exec(env_name, env_val, codex_dir, label, config):
                             new_lines = [line for line in lines if session_id not in line]
                             with open(history_file, "w") as hf:
                                 hf.writelines(new_lines)
-                        except:
-                            pass
+                            log_message(f"[{label}] Cleaned history.jsonl entry for session: {session_id}")
+                        except Exception as he:
+                            log_message(f"[{label}] Failed to clean history.jsonl entry: {he}")
     log_message(f"[{label}] Wakeup action completed.")
 
 def get_latest_session_mtime(codex_dir):
