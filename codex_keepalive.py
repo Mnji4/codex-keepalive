@@ -648,7 +648,7 @@ def main():
         print(f"\nSelected Target Account: {target_label} with Score {highest_score:.2f}")
         
         print("\nMigrating latest session...")
-        migrate_latest_session(source_codex_dir, target_codex_dir)
+        session_id = migrate_latest_session(source_codex_dir, target_codex_dir)
         
         print(f"\nLaunching {target_cmd_name} with migrated session...")
         new_env = os.environ.copy()
@@ -656,7 +656,10 @@ def main():
         sys.stdout.flush()
         sys.stderr.flush()
         try:
-            os.execvpe("codex", ["codex", "resume", "--last", "--dangerously-bypass-approvals-and-sandbox"], new_env)
+            if session_id:
+                os.execvpe("codex", ["codex", "resume", session_id, "--dangerously-bypass-approvals-and-sandbox"], new_env)
+            else:
+                os.execvpe("codex", ["codex", "resume", "--last", "--dangerously-bypass-approvals-and-sandbox"], new_env)
         except Exception as e:
             print(f"Error launching codex: {e}")
             sys.exit(1)
