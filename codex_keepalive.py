@@ -723,9 +723,81 @@ def main():
                         reason = f"Current cycle locked and running (resets: {reset_str}, delta: {delta}, used: {used_percent}%)"
                         
             if need_wakeup:
-                log_message(f"[{label}] {reason} -> Triggering keepalive wakeup")
-                trigger_keepalive_exec(env_name, env_val, codex_dir, label, config)
-                time.sleep(3)
+                locked_successfully = False
+                for attempt in range(1, 4):
+                    log_message(f"[{label}] {reason} -> Triggering keepalive wakeup (Attempt {attempt}/3)")
+                    trigger_keepalive_exec(env_name, env_val, codex_dir, label, config)
+                    
+                    if attempt == 3:
+                        locked_successfully = True
+                        break
+                        
+                    log_message(f"[{label}] Waiting 60 seconds to verify lock status...")
+                    time.sleep(60)
+                    
+                    log_message(f"[{label}] Re-querying status to check if cycle is locked...")
+                    fetch_account_metrics_thread(env_name, env_val, codex_dir, cmd_name, label, config, index=0)
+                    
+                    res = results.get(label)
+                    if not res or res["email"] == "unknown" or res["email"] == "未知" or not res["metrics"]:
+                        log_message(f"[{label}] Re-query failed or account logged out during verification.")
+                        break
+                        
+                    new_metrics = res["metrics"]
+                    new_weekly_info = new_metrics.get("Weekly limit")
+                    still_needs_wakeup = False
+                    new_reason = ""
+                    
+                    if not new_weekly_info:
+                        new_other_limit_0_used = False
+                        for limit_name, limit_info in new_metrics.items():
+                            try:
+                                val = 100 - int(limit_info["limit"].split("%")[0])
+                                if val == 0:
+                                    new_other_limit_0_used = True
+                                    break
+                            except:
+                                pass
+                        if new_other_limit_0_used or not new_metrics:
+                            still_needs_wakeup = True
+                            new_reason = "Weekly limit missing and other limits show 0% usage"
+                        else:
+                            still_needs_wakeup = False
+                            new_reason = "Weekly limit missing but other limits show usage"
+                    else:
+                        new_reset_str = new_weekly_info["reset"]
+                        new_limit_val = new_weekly_info["limit"]
+                        try:
+                            new_used = 100 - int(new_limit_val.split("%")[0])
+                        except:
+                            new_used = 0
+                        new_reset_dt = parse_reset_time_to_datetime(new_reset_str)
+                        
+                        if not new_reset_dt:
+                            if new_used == 0:
+                                still_needs_wakeup = True
+                                new_reason = "Weekly limit usage is 0% and reset time is unknown"
+                            else:
+                                still_needs_wakeup = False
+                                new_reason = "Weekly limit usage is non-zero, cycle assumed active"
+                        else:
+                            new_delta = new_reset_dt - datetime.datetime.now()
+                            if new_delta >= datetime.timedelta(days=7) - datetime.timedelta(minutes=10):
+                                still_needs_wakeup = True
+                                new_reason = f"Reset time is still approx 7 days ({new_reset_str})"
+                            else:
+                                still_needs_wakeup = False
+                                new_reason = f"Cycle successfully locked (resets in {new_reset_str})"
+                                
+                    if not still_needs_wakeup:
+                        log_message(f"[{label}] Verification SUCCESS: {new_reason}. Quota cycle is locked.")
+                        locked_successfully = True
+                        break
+                    else:
+                        log_message(f"[{label}] Verification FAILED: {new_reason}. Cycle not locked yet.")
+                
+                if locked_successfully:
+                    time.sleep(3)
             else:
                 log_message(f"[{label}] {reason} -> Skipping wakeup")
                 
