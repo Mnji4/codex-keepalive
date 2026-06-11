@@ -477,7 +477,21 @@ def main():
     source_acc = None
     if is_switch_mode:
         print("================== Codex Account Auto-Switch and Migration Tool ==================")
-        source_acc = find_source_account(accounts)
+        # Check if user specified a source account name in CLI arguments
+        specified_cmd = None
+        for arg in sys.argv:
+            for acc in accounts:
+                if arg == acc[3]:  # acc[3] is cmd_name (e.g., 'codex0')
+                    specified_cmd = acc
+                    break
+            if specified_cmd:
+                break
+                
+        if specified_cmd:
+            source_acc = specified_cmd
+        else:
+            source_acc = find_source_account(accounts)
+            
         if not source_acc:
             print("Error: Could not identify the source account directory based on file modifications.")
             sys.exit(1)
