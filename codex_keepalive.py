@@ -409,47 +409,120 @@ def migrate_latest_session(source_codex_dir, target_codex_dir):
         print("No history file found in source account. Skipping session migration.")
         return None
         
-    with open(history_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    try:
+        with open(history_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception as e:
+        print(f"Failed to read history file: {e}. Skipping session migration.")
+        return None
+        
     if not lines:
         print("History file is empty. Skipping session migration.")
         return None
         
-    last_line = lines[-1].strip()
-    try:
-        session_data = json.loads(last_line)
-        session_id = session_data.get("session_id")
-    except Exception as e:
-        print(f"Failed to parse latest history entry: {e}. Skipping migration.")
+    # Parse history to find unique sessions and group their lines
+    sessions_dict = {}
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            data = json.loads(stripped)
+            session_id = data.get("session_id")
+            if session_id:
+                ts = data.get("ts", 0)
+                text = data.get("text", "")
+                if session_id not in sessions_dict:
+                    sessions_dict[session_id] = {
+                        "first_ts": ts,
+                        "latest_ts": ts,
+                        "preview_text": text,
+                        "lines": []
+                    }
+                sessions_dict[session_id]["latest_ts"] = max(sessions_dict[session_id]["latest_ts"], ts)
+                sessions_dict[session_id]["lines"].append(line)
+                if text and text != "setup":
+                    sessions_dict[session_id]["preview_text"] = text
+        except:
+            pass
+            
+    sorted_sessions = sorted(
+        sessions_dict.items(),
+        key=lambda x: x[1]["latest_ts"],
+        reverse=True
+    )
+    
+    if not sorted_sessions:
+        print("No valid sessions found in history.jsonl. Skipping session migration.")
         return None
         
-    if not session_id:
-        print("No session_id found in the latest history entry. Skipping migration.")
-        return None
+    selected_session_id = None
+    selected_session_info = None
+    display_limit = min(8, len(sorted_sessions))
+    
+    if len(sorted_sessions) == 1:
+        selected_session_id, selected_session_info = sorted_sessions[0]
+    else:
+        print("\nRecent Sessions in Source Account:")
+        for idx in range(display_limit):
+            sid, info = sorted_sessions[idx]
+            try:
+                dt_str = datetime.datetime.fromtimestamp(info["latest_ts"]).strftime("%m-%d %H:%M")
+            except:
+                dt_str = "unknown"
+            preview = info["preview_text"]
+            if len(preview) > 50:
+                preview = preview[:47] + "..."
+            preview = preview.replace("\n", " ")
+            print(f"  [{idx + 1}] {dt_str} | {preview} ({sid[:8]})")
+            
+        try:
+            choice_str = input(f"\nSelect a session to migrate (1-{display_limit}, default: 1): ").strip()
+            if not choice_str:
+                choice_idx = 0
+            else:
+                choice_idx = int(choice_str) - 1
+                if choice_idx < 0 or choice_idx >= display_limit:
+                    print("Invalid choice, defaulting to the most recent session.")
+                    choice_idx = 0
+        except (KeyboardInterrupt, SystemExit):
+            sys.exit(0)
+        except:
+            choice_idx = 0
+            
+        selected_session_id, selected_session_info = sorted_sessions[choice_idx]
         
     source_session_path = None
     sessions_dir = os.path.join(source_codex_dir, "sessions")
     for root, dirs, files in os.walk(sessions_dir):
         for f in files:
-            if f.endswith(f"{session_id}.jsonl"):
+            if f.endswith(f"{selected_session_id}.jsonl"):
                 source_session_path = os.path.join(root, f)
                 break
         if source_session_path:
             break
             
     if not source_session_path:
-        print(f"Could not find session file for session {session_id} in source sessions directory.")
+        print(f"Could not find session file for session {selected_session_id} in source sessions directory.")
         return None
         
     rel_path = os.path.relpath(source_session_path, sessions_dir)
     target_session_path = os.path.join(target_codex_dir, "sessions", rel_path)
     os.makedirs(os.path.dirname(target_session_path), exist_ok=True)
     
-    shutil.copy2(source_session_path, target_session_path)
-    
+    try:
+        shutil.copy2(source_session_path, target_session_path)
+    except Exception as ce:
+        print(f"Failed to copy session file to target: {ce}")
+        return None
+        
     target_history_file = os.path.join(target_codex_dir, "history.jsonl")
-    with open(target_history_file, "a", encoding="utf-8") as f:
-        f.write(last_line + "\n")
+    try:
+        with open(target_history_file, "a", encoding="utf-8") as f:
+            for line in selected_session_info["lines"]:
+                f.write(line.strip() + "\n")
+    except Exception as he:
+        print(f"Warning: failed to append session entries to target history.jsonl: {he}")
         
     try:
         os.remove(source_session_path)
@@ -457,13 +530,22 @@ def migrate_latest_session(source_codex_dir, target_codex_dir):
         print(f"Warning: failed to delete source session file: {de}")
         
     try:
+        new_history_lines = []
+        for line in lines:
+            try:
+                data = json.loads(line.strip())
+                if data.get("session_id") != selected_session_id:
+                    new_history_lines.append(line)
+            except:
+                new_history_lines.append(line)
+                
         with open(history_file, "w", encoding="utf-8") as f:
-            f.writelines(lines[:-1])
+            f.writelines(new_history_lines)
     except Exception as he:
-        print(f"Warning: failed to remove session entry from source history.jsonl: {he}")
+        print(f"Warning: failed to remove session entries from source history.jsonl: {he}")
         
-    print(f"Successfully migrated session {session_id} to target.")
-    return session_id
+    print(f"Successfully migrated session {selected_session_id} to target.")
+    return selected_session_id
 
 def main():
     check_log_size()
