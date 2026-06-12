@@ -630,9 +630,13 @@ def main():
                     pass
                 t_weekly = parse_reset_time_to_hours(info_weekly["reset"], is_weekly=True)
                 
-            score_5h = p_5h / t_5h
-            score_weekly = (p_weekly * 7) / t_weekly
-            score = min(score_5h, score_weekly)
+            if p_5h == 0:
+                if t_5h < 0.08:
+                    score = 5.0
+                else:
+                    score = 0.0
+            else:
+                score = min(p_5h, p_weekly) + 0.01 * p_weekly
             
             print(f" ● {label}: 5h limit: {p_5h}% (resets in {t_5h:.2f}h), Weekly limit: {p_weekly}% (resets in {t_weekly:.2f}h) -> Score: {score:.2f}")
             
@@ -650,16 +654,28 @@ def main():
         print("\nMigrating latest session...")
         session_id = migrate_latest_session(source_codex_dir, target_codex_dir)
         
-        print(f"\nLaunching {target_cmd_name} with migrated session...")
+        choice = 'p'
+        if session_id:
+            try:
+                print(f"\nMigrated Session ID: {session_id}")
+                user_input = input("Press Enter to resume the migrated session, or type 'p' to show the session picker: ").strip().lower()
+                if user_input != 'p':
+                    choice = 'm'
+            except (KeyboardInterrupt, SystemExit):
+                sys.exit(0)
+            except:
+                choice = 'm'
+                
+        print(f"\nLaunching {target_cmd_name}...")
         new_env = os.environ.copy()
         new_env[target_env_name] = target_env_val
         sys.stdout.flush()
         sys.stderr.flush()
         try:
-            if session_id:
+            if choice == 'm' and session_id:
                 os.execvpe("codex", ["codex", "resume", session_id, "--dangerously-bypass-approvals-and-sandbox"], new_env)
             else:
-                os.execvpe("codex", ["codex", "resume", "--last", "--dangerously-bypass-approvals-and-sandbox"], new_env)
+                os.execvpe("codex", ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox"], new_env)
         except Exception as e:
             print(f"Error launching codex: {e}")
             sys.exit(1)
