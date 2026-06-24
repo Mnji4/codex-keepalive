@@ -231,7 +231,10 @@ def fetch_account_metrics_thread(env_name, env_val, codex_dir, cmd_name, label, 
     
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"{env_name}={env_val} codex"
+    if env_name == "HOME":
+        run_cmd = f"unset CODEX_HOME && HOME={env_val} codex"
+    else:
+        run_cmd = f"CODEX_HOME={env_val} codex"
 
     subprocess.run(f"tmux send-keys -t {session_name} '{nvm_cmd}' C-m", shell=True)
     time.sleep(0.5)
@@ -315,7 +318,10 @@ def trigger_keepalive_exec(env_name, env_val, codex_dir, label, config):
     prose = get_random_prose()
     nvm_dir = config.get("nvm_dir", os.path.join(USER_HOME, ".nvm"))
     nvm_cmd = f'export NVM_DIR="{nvm_dir}" && [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"'
-    run_cmd = f"{env_name}={env_val} codex exec \"{prose}\" --skip-git-repo-check"
+    if env_name == "HOME":
+        run_cmd = f"unset CODEX_HOME && HOME={env_val} codex exec \"{prose}\" --skip-git-repo-check"
+    else:
+        run_cmd = f"CODEX_HOME={env_val} codex exec \"{prose}\" --skip-git-repo-check"
     full_cmd = f"{nvm_cmd} && {run_cmd}"
     
     try:
@@ -751,6 +757,8 @@ def main():
         print(f"\nLaunching {target_cmd_name}...")
         new_env = os.environ.copy()
         new_env[target_env_name] = target_env_val
+        if target_env_name == "HOME":
+            new_env.pop("CODEX_HOME", None)
         sys.stdout.flush()
         sys.stderr.flush()
         try:
