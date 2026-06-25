@@ -680,6 +680,11 @@ def main():
         
     # Execute specific branch
     if is_switch_mode and source_acc:
+        candidates = [acc for acc in accounts if acc[2] != source_codex_dir]
+        if not candidates:
+            print("Error: No other accounts discovered to switch to. Verify ~/.bashrc configurations.")
+            sys.exit(1)
+            
         valid_candidates = []
         for env_name, env_val, codex_dir, cmd_name, label in candidates:
             res = results.get(label)
