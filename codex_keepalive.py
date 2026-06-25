@@ -680,15 +680,7 @@ def main():
         
     # Execute specific branch
     if is_switch_mode and source_acc:
-        candidates = [acc for acc in accounts if acc[2] != source_codex_dir]
-        if not candidates:
-            print("Error: No other accounts discovered to switch to. Verify ~/.bashrc configurations.")
-            sys.exit(1)
-            
-        print("\nCandidates Evaluation:")
-        best_candidate = None
-        highest_score = -1.0
-        
+        valid_candidates = []
         for env_name, env_val, codex_dir, cmd_name, label in candidates:
             res = results.get(label)
             if not res or res["email"] == "unknown" or not res["metrics"]:
@@ -725,18 +717,54 @@ def main():
                     score = 0.0
             else:
                 score = min(p_5h, p_weekly) + 0.01 * p_weekly
-            
-            print(f" ● {label}: 5h limit: {p_5h}% (resets in {t_5h:.2f}h), Weekly limit: {p_weekly}% (resets in {t_weekly:.2f}h) -> Score: {score:.2f}")
-            
-            if score > highest_score:
-                highest_score = score
-                best_candidate = (env_name, env_val, codex_dir, cmd_name, label)
                 
-        if not best_candidate:
+            valid_candidates.append({
+                "env_name": env_name,
+                "env_val": env_val,
+                "codex_dir": codex_dir,
+                "cmd_name": cmd_name,
+                "label": label,
+                "score": score,
+                "p_5h": p_5h,
+                "t_5h": t_5h,
+                "p_weekly": p_weekly,
+                "t_weekly": t_weekly
+            })
+            
+        if not valid_candidates:
             print("\nError: No valid active candidates available.")
             sys.exit(1)
             
-        target_env_name, target_env_val, target_codex_dir, target_cmd_name, target_label = best_candidate
+        # Sort candidates by score descending
+        valid_candidates.sort(key=lambda x: x["score"], reverse=True)
+        
+        print("\nCandidates Evaluation:")
+        for idx, cand in enumerate(valid_candidates):
+            rec_str = " (Recommended)" if idx == 0 else ""
+            print(f"  [{idx + 1}]{rec_str} {cand['label']}: 5h limit: {cand['p_5h']}% (resets in {cand['t_5h']:.2f}h), Weekly limit: {cand['p_weekly']}% (resets in {cand['t_weekly']:.2f}h) -> Score: {cand['score']:.2f}")
+            
+        selected_cand = valid_candidates[0]
+        if is_interactive:
+            try:
+                choice_str = input(f"\nSelect target account (1-{len(valid_candidates)}, default: 1): ").strip()
+                if choice_str:
+                    choice_idx = int(choice_str) - 1
+                    if 0 <= choice_idx < len(valid_candidates):
+                        selected_cand = valid_candidates[choice_idx]
+                    else:
+                        print("Invalid choice, using recommended account.")
+            except (KeyboardInterrupt, SystemExit):
+                sys.exit(0)
+            except:
+                print("Invalid choice, using recommended account.")
+                
+        target_env_name = selected_cand["env_name"]
+        target_env_val = selected_cand["env_val"]
+        target_codex_dir = selected_cand["codex_dir"]
+        target_cmd_name = selected_cand["cmd_name"]
+        target_label = selected_cand["label"]
+        highest_score = selected_cand["score"]
+        
         print(f"\nSelected Target Account: {target_label} with Score {highest_score:.2f}")
         
         print("\nMigrating latest session...")
