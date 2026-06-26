@@ -585,8 +585,24 @@ def main():
             sys.exit(1)
         source_env_name, source_env_val, source_codex_dir, source_cmd_name, source_label = source_acc
         print(f"Detected Source Account: {source_label} ({source_env_val})")
-        print("Querying all accounts' quota status in parallel, please wait...")
+        
+        query_quota = False
+        if is_interactive:
+            try:
+                user_input = input("Query account quota status? (y/N, default: N): ").strip().lower()
+                if user_input in ('y', 'yes'):
+                    query_quota = True
+            except (KeyboardInterrupt, SystemExit):
+                sys.exit(0)
+            except:
+                pass
+                
+        if query_quota:
+            print("Querying all accounts' quota status in parallel, please wait...")
+        else:
+            print("Skipping quota queries...")
     else:
+        query_quota = True
         if is_interactive:
             print(f"\n================== Querying Codex Account Limits in Parallel ==================")
             print("Setting up secure channels and syncing status commands, please wait...")
@@ -595,16 +611,16 @@ def main():
             log_message(f"Dynamically discovered {len(accounts)} Codex account configuration(s).")
             
     # Query accounts in parallel
-    subprocess.run("tmux start-server 2>/dev/null", shell=True)
-    
-    threads = []
-    for i, (env_name, env_val, codex_dir, cmd_name, label) in enumerate(accounts):
-        t = threading.Thread(target=fetch_account_metrics_thread, args=(env_name, env_val, codex_dir, cmd_name, label, config, i))
-        threads.append(t)
-        t.start()
-        
-    for t in threads:
-        t.join()
+    if query_quota:
+        subprocess.run("tmux start-server 2>/dev/null", shell=True)
+        threads = []
+        for i, (env_name, env_val, codex_dir, cmd_name, label) in enumerate(accounts):
+            t = threading.Thread(target=fetch_account_metrics_thread, args=(env_name, env_val, codex_dir, cmd_name, label, config, i))
+            threads.append(t)
+            t.start()
+            
+        for t in threads:
+            t.join()
         
     # Compile status cache
     GREEN = "\033[92m"
@@ -665,7 +681,7 @@ def main():
     
     # Always write cache if configured
     cache_file = os.path.join(STATE_DIR, "status_cache")
-    if config.get("enable_terminal_snapshot", "true").lower() == "true":
+    if query_quota and config.get("enable_terminal_snapshot", "true").lower() == "true":
         try:
             with open(cache_file, "w") as f:
                 f.write("\n".join(cache_lines) + "\n")
@@ -687,41 +703,48 @@ def main():
             
         valid_candidates = []
         for env_name, env_val, codex_dir, cmd_name, label in candidates:
-            res = results.get(label)
-            if not res or res["email"] == "unknown" or not res["metrics"]:
+            res = results.get(label) if query_quota else None
+            if query_quota and (not res or res["email"] == "unknown" or not res["metrics"]):
                 print(f" ● {label}: Failed to fetch status (may be logged out). Skipping.")
                 continue
                 
-            metrics = res["metrics"]
-            info_5h = metrics.get("5h limit")
-            info_weekly = metrics.get("Weekly limit")
+            metrics = res["metrics"] if query_quota else {}
+            info_5h = metrics.get("5h limit") if query_quota else None
+            info_weekly = metrics.get("Weekly limit") if query_quota else None
             
             p_5h = 100
             t_5h = 5.0
             p_weekly = 100
             t_weekly = 168.0
             
-            if info_5h:
+            if query_quota and info_5h:
                 try:
                     p_5h = int(info_5h["limit"].split("%")[0].strip())
                 except:
                     pass
                 t_5h = parse_reset_time_to_hours(info_5h["reset"], is_weekly=False)
                 
-            if info_weekly:
+            if query_quota and info_weekly:
                 try:
                     p_weekly = int(info_weekly["limit"].split("%")[0].strip())
                 except:
                     pass
                 t_weekly = parse_reset_time_to_hours(info_weekly["reset"], is_weekly=True)
                 
-            if p_5h == 0:
-                if t_5h < 0.08:
-                    score = 5.0
+            if query_quota:
+                if p_5h == 0:
+                    if t_5h < 0.08:
+                        score = 5.0
+                    else:
+                        score = 0.0
                 else:
-                    score = 0.0
+                    score = min(p_5h, p_weekly) + 0.01 * p_weekly
             else:
-                score = min(p_5h, p_weekly) + 0.01 * p_weekly
+                p_5h = "unknown"
+                t_5h = 0.0
+                p_weekly = "unknown"
+                t_weekly = 0.0
+                score = 0.0
                 
             valid_candidates.append({
                 "env_name": env_name,
@@ -745,8 +768,11 @@ def main():
         
         print("\nCandidates Evaluation:")
         for idx, cand in enumerate(valid_candidates):
-            rec_str = " (Recommended)" if idx == 0 else ""
-            print(f"  [{idx + 1}]{rec_str} {cand['label']}: 5h limit: {cand['p_5h']}% (resets in {cand['t_5h']:.2f}h), Weekly limit: {cand['p_weekly']}% (resets in {cand['t_weekly']:.2f}h) -> Score: {cand['score']:.2f}")
+            rec_str = " (Recommended)" if idx == 0 and query_quota else ""
+            if query_quota:
+                print(f"  [{idx + 1}]{rec_str} {cand['label']}: 5h limit: {cand['p_5h']}% (resets in {cand['t_5h']:.2f}h), Weekly limit: {cand['p_weekly']}% (resets in {cand['t_weekly']:.2f}h) -> Score: {cand['score']:.2f}")
+            else:
+                print(f"  [{idx + 1}] {cand['label']}")
             
         selected_cand = valid_candidates[0]
         if is_interactive:
@@ -775,17 +801,7 @@ def main():
         print("\nMigrating latest session...")
         session_id = migrate_latest_session(source_codex_dir, target_codex_dir)
         
-        choice = 'p'
-        if session_id:
-            try:
-                print(f"\nMigrated Session ID: {session_id}")
-                user_input = input("Press Enter to resume the migrated session, or type 'p' to show the session picker: ").strip().lower()
-                if user_input != 'p':
-                    choice = 'm'
-            except (KeyboardInterrupt, SystemExit):
-                sys.exit(0)
-            except:
-                choice = 'm'
+        choice = 'm' if session_id else 'p'
                 
         print(f"\nLaunching {target_cmd_name}...")
         new_env = os.environ.copy()
